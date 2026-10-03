@@ -206,9 +206,10 @@ sync_code() {
     esac
 }
 
-# Activity modules that Moodle removed from core (Chat and Survey in 5.0,
-# for example) are uninstalled by Moodle's upgrade, with their activities.
-# Refuse to do that silently when the site has such activities.
+# Plugins that Moodle removed from core are uninstalled by Moodle's upgrade:
+# activity modules with their activities (Chat and Survey in 5.0) and themes
+# with every selection of them (Classic in 5.3). Refuse to do that silently
+# when the site uses them.
 check_removed_modules() {
     [ "${OKS_DB_STATE}" = installed ] || return 0
     local removed component count blocked=()
@@ -219,6 +220,12 @@ check_removed_modules() {
                 count="$(php "${OKS_PHP}/db.php" activities "${component#mod_}")"
                 [ "${count}" -gt 0 ] && blocked+=("${component} (${count} activities)")
                 ;;
+            theme_*)
+                # Moodle uninstalls the theme and resets every selection of it
+                # (Classic in 5.3).
+                count="$(php "${OKS_PHP}/db.php" theme-usage "${component#theme_}")"
+                [ "${count}" -gt 0 ] && blocked+=("${component} (in use ${count} times: site, courses, categories, cohorts or users)")
+                ;;
         esac
     done
     [ "${#blocked[@]}" -gt 0 ] || return 0
@@ -226,11 +233,12 @@ check_removed_modules() {
         warn "Moodle will uninstall these modules and delete their activities: ${blocked[*]}"
         return 0
     fi
-    die "this upgrade removes modules that Moodle no longer ships, and this site uses them:
+    die "this upgrade removes plugins that Moodle no longer ships, and this site uses them:
         ${blocked[*]}
-        Moodle's upgrade would delete those activities. Either keep the current image tag,
-        or set MOODLE_ALLOW_REMOVED_PLUGINS=yes to go ahead (a database backup is taken first).
-        Versions of these modules for newer Moodle may exist at https://moodle.org/plugins"
+        Moodle's upgrade would uninstall them: activities of removed modules are deleted, and
+        selections of a removed theme are reset. Either keep the current image tag, or set
+        MOODLE_ALLOW_REMOVED_PLUGINS=yes to go ahead (a database backup is taken first).
+        Versions of these plugins for newer Moodle may exist at https://moodle.org/plugins"
 }
 
 # Runs after the database is reachable, so the backup can include it.

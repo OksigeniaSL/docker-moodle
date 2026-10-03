@@ -1,10 +1,11 @@
 <?php
 // Database checks that run before Moodle can boot.
 //
-// Usage: php db.php wait|state|activities <module>
+// Usage: php db.php wait|state|activities <module>|theme-usage <theme>
 //   wait   retry until the database accepts connections (OKS_DB_WAIT seconds)
 //   state  print "installed", "empty" or "partial"
 //   activities  number of activities of a module in courses
+//   theme-usage  site default, course, category, cohort and user selections of a theme
 //
 // Connection settings come from the OKS_DB_* environment variables.
 
@@ -112,5 +113,24 @@ if ($action === 'activities') {
     exit(0);
 }
 
-fwrite(STDERR, "usage: db.php wait|state|activities <module>\n");
+// How much a theme is in use: the site default, plus course, category,
+// cohort and user selections where the site allows them (otherwise those
+// values are ignored by Moodle and do not count).
+if ($action === 'theme-usage') {
+    $conn = connect($type);
+    $theme = preg_replace('/[^a-z0-9_]/', '', $argv[2] ?? '');
+    $config = fn(string $name) => query_one($conn, $type, "SELECT value FROM {$prefix}config WHERE name = '$name'");
+    $n = ($config('theme') === $theme) ? 1 : 0;
+    $tables = ['course' => 'allowcoursethemes', 'course_categories' => 'allowcategorythemes',
+        'cohort' => 'allowcohortthemes', 'user' => 'allowuserthemes'];
+    foreach ($tables as $table => $setting) {
+        if (!empty($config($setting))) {
+            $n += (int) query_one($conn, $type, "SELECT COUNT(*) FROM {$prefix}{$table} WHERE theme = '$theme'");
+        }
+    }
+    echo $n, "\n";
+    exit(0);
+}
+
+fwrite(STDERR, "usage: db.php wait|state|activities <module>|theme-usage <theme>\n");
 exit(2);
