@@ -201,7 +201,7 @@ The image includes [Oksigenia Access](https://github.com/OksigeniaSL/moodle-loca
     --certificate-oidc-issuer https://token.actions.githubusercontent.com
   ```
 
-- **SBOM and provenance:** each image carries an SBOM and SLSA provenance attestations (`docker buildx imagetools inspect oksigenia/moodle:5.2 --format '{{json .SBOM}}'`), and a GitHub build attestation (`gh attestation verify oci://ghcr.io/oksigeniasl/moodle:5.2 -R OksigeniaSL/docker-moodle`).
+- **SBOM and provenance:** each image carries an SBOM and SLSA provenance attestations (`docker buildx imagetools inspect oksigenia/moodle:5.2 --format '{{json .SBOM}}'`), and a GitHub build attestation (`gh attestation verify oci://ghcr.io/oksigeniasl/moodle:5.2 -R OksigeniaSL/docker-moodle`, with GitHub CLI 2.49 or later).
 - **Scanning:** a build with a critical vulnerability that has a fix available is not published.
 - **Reporting:** report vulnerabilities in the image privately through [GitHub security advisories](https://github.com/OksigeniaSL/docker-moodle/security/advisories/new). Vulnerabilities in Moodle itself go to [Moodle's security process](https://moodledev.io/general/development/process/security).
 
