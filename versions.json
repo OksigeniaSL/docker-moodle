@@ -17,5 +17,6 @@
       "lts": false
     }
   },
-  "latest": "5.2"
+  "latest": "5.2",
+  "lts": "5.3"
 }

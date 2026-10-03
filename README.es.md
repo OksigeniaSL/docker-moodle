@@ -4,8 +4,6 @@ Imagen de contenedor del software Moodle™ LMS, mantenida y de código abierto.
 
 [Read in English](README.md)
 
-> **En construcción.** Todavía no hay imágenes publicadas; la primera versión está prevista para octubre de 2026.
-
 ## Por qué existe
 
 Las imágenes gratuitas de Moodle de Bitnami dejaron de actualizarse en agosto de 2025: `bitnami/moodle` se congeló el 19-08-2025 y `bitnamilegacy/moodle` el 23-08-2025. Muchos sitios siguen funcionando con ellas, en Moodle 4.5.4 o 5.0.2, sin parches de seguridad. Esta imagen toma el relevo:
@@ -38,9 +36,11 @@ Abre `MOODLE_URL` y entra como `admin` con `MOODLE_ADMIN_PASSWORD`. Si no indica
 
 | Moodle | Etiquetas | PHP | Seguridad hasta |
 |---|---|---|---|
-| 5.3 LTS | `5.3`, `5`, `lts`, `latest` | 8.4 | octubre de 2029 |
-| 5.2 | `5.2` | 8.4 | octubre de 2027 |
+| 5.2 | `5.2`, `5`, `latest` | 8.4 | octubre de 2027 |
 | 4.5 LTS | `4.5`, `4` | 8.3 | octubre de 2027 |
+| 5.3 LTS | `5.3`, y después `5`, `latest` y `lts` | 8.4 | octubre de 2029 |
+
+Moodle 5.3 se publica aquí el mismo día que la publique Moodle, previsto para el 5 de octubre de 2026. Hasta entonces, `latest` apunta a la 5.2 y no hay etiqueta `lts`, para que nadie pase de la 4.5 a la 5.3 sin querer.
 
 - **Versión exacta:** cada rama tiene también una etiqueta con la versión exacta de Moodle (por ejemplo `5.2.3`), que se mueve con cada reconstrucción.
 - **Compilación inmutable:** `5.2.3-r1`, `5.2.3-r2`… no se mueven nunca. Fija una de estas en producción si quieres decidir tú cuándo actualizar.

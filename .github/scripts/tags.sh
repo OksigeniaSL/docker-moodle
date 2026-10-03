@@ -6,7 +6,7 @@
 # 5.2.3-rN never moves: N grows with every rebuild of the same Moodle
 # version, read from the tags already in GHCR. The others move to the
 # newest build. "5" goes to the newest branch of each major version,
-# "latest" to versions.json .latest and "lts" to the newest LTS branch.
+# "latest" to versions.json .latest and "lts" to versions.json .lts.
 #
 # Usage: .github/scripts/tags.sh 5.2   (GH_TOKEN must allow reading packages)
 
@@ -35,8 +35,9 @@ tags=("${immutable}" "${moodle}" "${branch}")
 newest_of_major="$(jq -r --arg m "${major}" '[.branches | keys[] | select(startswith($m + "."))] | sort_by(split(".") | map(tonumber)) | last' "${v}")"
 [ "${branch}" = "${newest_of_major}" ] && tags+=("${major}")
 [ "${branch}" = "$(jq -r '.latest' "${v}")" ] && tags+=(latest)
-newest_lts="$(jq -r '[.branches | to_entries[] | select(.value.lts) | .key] | sort_by(split(".") | map(tonumber)) | last' "${v}")"
-[ "${branch}" = "${newest_lts}" ] && tags+=(lts)
+# "lts" is set explicitly in versions.json, so it never jumps to another
+# major version just because a branch was added or removed.
+[ "${branch}" = "$(jq -r '.lts // empty' "${v}")" ] && tags+=(lts)
 
 echo "immutable=${immutable}"
 echo "tags=${tags[*]}"

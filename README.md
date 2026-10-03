@@ -4,8 +4,6 @@ A maintained, open-source container image of the Moodle™ LMS software: the off
 
 [Leer en español](README.es.md)
 
-> **Work in progress.** No images are published yet; the first release is planned for October 2026.
-
 ## Why this image
 
 Bitnami's free Moodle images stopped receiving updates in August 2025 (`bitnami/moodle` was frozen on 2025-08-19, `bitnamilegacy/moodle` on 2025-08-23). Many sites still run on them, on Moodle 4.5.4 or 5.0.2, without security fixes. This image takes over:
@@ -34,11 +32,13 @@ Open `MOODLE_URL` and log in as `admin` with `MOODLE_ADMIN_PASSWORD`. If you lea
 
 ## Tags
 
-| Moodle | Tags | PHP | Support until (security) |
+| Moodle | Tags | PHP | Security fixes until |
 |---|---|---|---|
-| 5.3 LTS | `5.3`, `5`, `lts`, `latest` | 8.4 | October 2029 |
-| 5.2 | `5.2` | 8.4 | October 2027 |
+| 5.2 | `5.2`, `5`, `latest` | 8.4 | October 2027 |
 | 4.5 LTS | `4.5`, `4` | 8.3 | October 2027 |
+| 5.3 LTS | `5.3`, and then `5`, `latest` and `lts` | 8.4 | October 2029 |
+
+Moodle 5.3 is published here on the day Moodle releases it, planned for 5 October 2026. Until then, `latest` points to 5.2 and there is no `lts` tag, so that nobody moves from 4.5 to 5.3 by accident.
 
 - **Exact version:** each branch also has a tag with the exact Moodle version (e.g. `5.2.3`), which moves with every rebuild.
 - **Immutable build:** `5.2.3-r1`, `5.2.3-r2`… never move. Pin one of these in production if you want to decide when to update.
