@@ -26,6 +26,8 @@ When the container starts and finds a `bitnami/moodle` installation in `/bitnami
 | 5.0.x | `oksigenia/moodle:5.2` or `:5.3` | Moodle 5.0 stopped receiving security fixes on 5 October 2026. |
 | 4.4.x or older 4.x | `oksigenia/moodle:4.5` first | Moodle 5.2 and later need at least 4.4; going through 4.5 is the tested path. |
 
+Moodle 5.3 also removes the Classic theme from core: during the upgrade it uninstalls Classic and resets every course, category, cohort and user selection of it, unless you install Classic separately first. The image stops before upgrading if the site uses Classic (`MOODLE_ALLOW_REMOVED_PLUGINS=yes` lets it go ahead).
+
 Moving from 4.5 to 5.x is a major upgrade. Moodle 5.0 removed the Atto editor, Chat and Survey from core. If you use them, install them from [moodle.org/plugins](https://moodle.org/plugins) before or after the upgrade. The image warns about them and does not carry the old copies over.
 
 ## Steps
@@ -94,6 +96,17 @@ docker compose exec mariadb mariadb-dump -u root --single-transaction bitnami_mo
 ```
 
 Then start `mariadb:11.4` with an empty volume and import `moodle.sql`. Moodle 5.3 needs MariaDB 11.4 or later.
+
+A real migration also worked in place, keeping the data directory:
+
+1. Take the dump above, then run `SET GLOBAL innodb_fast_shutdown=0;` and stop the 10.11 container cleanly.
+2. `chown -R 999:999` the data directory (Bitnami's MariaDB runs as uid 1001, the official one as 999).
+3. Mount it at `/var/lib/mysql` (Bitnami used `/bitnami/mariadb/data`), set `MARIADB_AUTO_UPGRADE: "1"`, and replace Bitnami's `MARIADB_CHARACTER_SET`/`MARIADB_COLLATE` with `command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci`. With an empty root password, also `MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "1"`.
+4. The log shows `mariadb-upgrade` running once; users and databases stay as they were.
+
+## The container hostname
+
+If your Compose file sets `hostname:` to the site's domain, remove it. Moodle sends some requests to its own address (the router checks, some tasks), and with that hostname they stay inside the container, where nothing listens on 443. The image warns about it at start.
 
 ## HTTPS on 8443
 

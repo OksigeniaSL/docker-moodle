@@ -19,6 +19,8 @@ set -euo pipefail
 . /usr/local/lib/oksigenia-moodle/site.sh
 
 [ -n "${MOODLE_ENTRYPOINT_DEBUG:-}" ] && set -x
+# Never stop without saying where (set -e exits silently otherwise).
+trap 'rc=$?; [ "${rc}" -ne 0 ] && [ -z "${OKS_DIED:-}" ] && printf "[moodle] ERROR: start-up stopped (exit code %s) at: %s\n" "${rc}" "${BASH_COMMAND}" >&2' EXIT
 
 # The working directory may be replaced by a symlink below (bitnami layout).
 cd /
@@ -52,10 +54,12 @@ if ! flock -n 9; then
     flock 9
 fi
 
+check_failed_upgrade
 sync_code
 prepare_config
 setup_tls
 wait_for_database
+clear_failed_upgrade_flag
 apply_code_update
 sync_access
 write_managed_config

@@ -98,12 +98,17 @@ backup_dir_new() {
     chmod 0700 "${OKS_DATA_STATE}/backups"
 }
 
-# Keep the newest MOODLE_BACKUP_KEEP backups.
+# Keep the newest MOODLE_BACKUP_KEEP backups, and always the newest one taken
+# before a Moodle version change (the one with code.tar.gz): it is the way
+# back to the previous version. Only called after a successful upgrade.
 backup_rotate() {
-    local keep="${MOODLE_BACKUP_KEEP}" dir
+    local keep="${MOODLE_BACKUP_KEEP}" dir protect
     [ -d "${OKS_DATA_STATE}/backups" ] || return 0
+    protect="$(find "${OKS_DATA_STATE}/backups" -mindepth 2 -maxdepth 2 -name code.tar.gz -printf '%h\n' \
+        | sort -r | head -n 1)"
     find "${OKS_DATA_STATE}/backups" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
         | sort -r | tail -n +"$((keep + 1))" | while read -r dir; do
+            [ "${OKS_DATA_STATE}/backups/${dir}" = "${protect}" ] && continue
             rm -rf "${OKS_DATA_STATE}/backups/${dir}"
             log "Removed old backup ${dir}"
         done
@@ -206,6 +211,27 @@ sync_code() {
     esac
 }
 
+# Add-on modules that the new Moodle rejects as broken stop the upgrade half
+# way. Check them before anything changes.
+check_broken_addons() {
+    local branch addons broken
+    local versionfile="${IMAGE_CODE}/version.php"
+    [ -f "${IMAGE_CODE}/public/version.php" ] && versionfile="${IMAGE_CODE}/public/version.php"
+    branch="$(sed -n "s/^\$branch *= *'\([0-9]*\)'.*/\1/p" "${versionfile}")"
+    [ "${branch:-0}" -ge 503 ] || return 0
+    addons="$(php "${OKS_PHP}/addons.php" "${MOODLE_CODE_DIR}" "${IMAGE_CODE}" 2>/dev/null | awk -F'\t' '{print $1 "=" $2}')" || return 0
+    [ -n "${addons}" ] || return 0
+    # shellcheck disable=SC2086 # one argument per add-on
+    broken="$(php "${OKS_PHP}/broken-addons.php" "${MOODLE_CODE_DIR}" ${addons})"
+    [ -n "${broken}" ] || return 0
+    die "these add-on modules still declare FEATURE_GROUPMEMBERSONLY, and Moodle 5.3 refuses to
+        upgrade them (\"detectedbrokenplugin\"):
+$(printf '%s\n' "${broken}" | sed 's/^/        /')
+        Install a version of each that supports Moodle 5.3, or remove the
+        'case FEATURE_GROUPMEMBERSONLY:' lines from their <mod>_supports() function in lib.php.
+        Nothing has been changed yet."
+}
+
 # Plugins that Moodle removed from core are uninstalled by Moodle's upgrade:
 # activity modules with their activities (Chat and Survey in 5.0) and themes
 # with every selection of them (Classic in 5.3). Refuse to do that silently
@@ -244,6 +270,7 @@ check_removed_modules() {
 # Runs after the database is reachable, so the backup can include it.
 apply_code_update() {
     [ "${OKS_CODE_CHANGED:-no}" = yes ] || return 0
+    check_broken_addons
     check_removed_modules
     backup_dir_new
     backup_code
@@ -252,7 +279,6 @@ apply_code_update() {
         OKS_DB_BACKED_UP=yes
     fi
     replace_code
-    backup_rotate
     log "Moodle code updated; the database upgrade follows"
 }
 

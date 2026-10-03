@@ -7,6 +7,7 @@
 #   tests/run.sh upgrade           IMAGE_OLD=... IMAGE=...
 #   tests/run.sh bitnami           IMAGE=... BITNAMI_IMAGE=bitnamilegacy/moodle:5.0.2
 #   tests/run.sh bitnami-fresh     IMAGE=...
+#   tests/run.sh upgrade-failure   IMAGE=...
 #
 # Each scenario runs in its own Compose project and removes it, volumes
 # included, when it finishes. KEEP=1 leaves it running for debugging.
@@ -113,6 +114,20 @@ expect_cron() {
     done
 }
 
+# Moodle's own router check (5.2+): API routes, a 404, and the shims, which
+# include a nonexistent *.php URL that must reach r.php.
+expect_router() {
+    local result
+    # shellcheck disable=SC2016 # PHP code, expanded by PHP
+    result="$(moodle_eval 'if (!class_exists(\core\check\environment\router::class)) { echo "n/a"; exit; }
+        $r = (new \core\check\environment\router())->get_result(); echo $r->get_status(), " ", strip_tags($r->get_summary());')"
+    case "${result}" in
+        n/a) echo "router check not in this Moodle version" ;;
+        ok*) echo "Moodle router check: ${result}" ;;
+        *) fail "Moodle router check: ${result}" ;;
+    esac
+}
+
 expect_nonroot() {
     local users
     users="$(compose exec -T moodle ps -eo user=,comm= | awk '$2 ~ /apache2|php/ {print $1}' | sort -u | tr '\n' ' ')"
@@ -128,16 +143,17 @@ basic_checks() {
     front="$(http_status /)"
     case "${front}" in 200|303) echo "GET / -> ${front}" ;; *) fail "GET / returned ${front}" ;; esac
     [ "$(http_body /_oksigenia/health)" = OK ] || fail "health endpoint is not OK"
+    expect_router
     expect_nonroot
     expect_cron
     echo "Moodle $(moodle_release)"
 }
 
 add_test_plugin() {
-    local dir="$1"
-    compose cp "${HERE}/fixtures/local_oksitest" "moodle:${dir}/local/oksitest"
+    local dir="$1" name="${3:-oksitest}"
+    compose cp "${HERE}/fixtures/local_${name}" "moodle:${dir}/local/${name}"
     # As if an administrator had copied it by hand: owned by $2, not group-writable.
-    compose exec -T -u 0 moodle sh -c "chown -R '$2' '${dir}/local/oksitest' && chmod -R u=rwX,go=rX '${dir}/local/oksitest'"
+    compose exec -T -u 0 moodle sh -c "chown -R '$2' '${dir}/local/${name}' && chmod -R u=rwX,go=rX '${dir}/local/${name}'"
 }
 
 case "${SCENARIO}" in
@@ -163,6 +179,36 @@ case "${SCENARIO}" in
         log "New install with Bitnami variables and volumes (${IMAGE:?})"
         compose up -d
         basic_checks
+        ;;
+
+    upgrade-failure)
+        # A failed upgrade must not turn into a restart loop that replaces the
+        # good backup with backups of a half-upgraded database.
+        COMPOSE_FILE="${HERE}/compose/mariadb.yaml"
+        log "Install, then add a plugin whose install fails (${IMAGE:?})"
+        compose up -d
+        wait_healthy
+        dir="$(compose exec -T moodle sh -c 'test -d /var/www/moodle/public && echo /var/www/moodle/public || echo /var/www/moodle')"
+        add_test_plugin "${dir}" www-data:www-data oksifail
+        compose restart moodle
+        deadline=$(( $(date +%s) + 600 ))
+        until [ "$(docker inspect -f '{{.State.Status}}' "$(compose ps -a -q moodle)")" = exited ]; do
+            [ "$(date +%s)" -lt "${deadline}" ] || fail "the failing upgrade did not stop the container"
+            sleep 5
+        done
+        count_backups() { compose run --rm --no-deps --entrypoint sh moodle -c 'ls /var/www/moodledata/oksigenia/backups | wc -l'; }
+        first="$(count_backups)"
+        log "Start again: it must stop at once, without a new backup"
+        compose start moodle
+        sleep 20
+        compose logs moodle | grep -q 'a previous upgrade failed' || fail "second start did not report the failed upgrade"
+        [ "$(count_backups)" = "${first}" ] || fail "a new backup was taken after the failed upgrade"
+        echo "no new backup after the failed upgrade (${first} kept)"
+        log "Fix the cause and retry with MOODLE_RETRY_UPGRADE=yes"
+        compose run --rm --no-deps --entrypoint sh moodle -c "rm -rf ${dir}/local/oksifail"
+        MOODLE_RETRY_UPGRADE=yes compose up -d moodle
+        wait_healthy
+        expect_status /login/index.php 200
         ;;
 
     access)
@@ -232,6 +278,13 @@ case "${SCENARIO}" in
         compose exec -T moodle sh -c \
             'test -f /bitnami/moodle/public/local/oksitest/version.php || test -f /bitnami/moodle/local/oksitest/version.php' \
             || fail "test plugin code missing"
+        # shellcheck disable=SC2016 # PHP code, expanded by PHP
+        leftover="$(moodle_eval 'foreach (core_plugin_manager::instance()->get_plugins() as $t => $ps) { foreach ($ps as $n => $p) {
+            if ($p->get_status() === core_plugin_manager::PLUGIN_STATUS_DELETE) { echo "{$t}_{$n} "; } } }')"
+        case " ${leftover}" in
+            *" block_"*|*" mod_"*) fail "unused removed plugins left registered: ${leftover}" ;;
+        esac
+        echo "Removed standard plugins still registered: ${leftover:-none}"
         echo "Migrated from ${BITNAMI_IMAGE} to $(moodle_release), add-on kept"
         ;;
 

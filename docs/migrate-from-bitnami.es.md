@@ -26,6 +26,8 @@ Cuando el contenedor arranca y encuentra una instalación de `bitnami/moodle` en
 | 5.0.x | `oksigenia/moodle:5.2` o `:5.3` | Moodle 5.0 dejó de recibir parches de seguridad el 5 de octubre de 2026. |
 | 4.4.x o una 4.x anterior | primero `oksigenia/moodle:4.5` | Moodle 5.2 y posteriores necesitan al menos la 4.4; pasar por la 4.5 es el camino probado. |
 
+Moodle 5.3 también retira del núcleo el tema Classic. Al actualizar lo desinstala y reinicia todas las selecciones de ese tema en cursos, categorías, cohortes y usuarios, salvo que antes instales Classic aparte. La imagen se detiene antes de actualizar si el sitio usa Classic; con `MOODLE_ALLOW_REMOVED_PLUGINS=yes`, sigue adelante.
+
 Pasar de 4.5 a 5.x es una actualización mayor. Moodle 5.0 quitó del núcleo el editor Atto, el Chat y la Encuesta (Survey). Si los usas, instálalos desde [moodle.org/plugins](https://moodle.org/plugins) antes o después de actualizar. La imagen avisa de ellos y no conserva las copias antiguas.
 
 ## Pasos
@@ -97,6 +99,19 @@ docker compose exec mariadb mariadb-dump -u root --single-transaction bitnami_mo
 ```
 
 Después arranca `mariadb:11.4` con un volumen vacío e importa `moodle.sql`. Moodle 5.3 necesita MariaDB 11.4 o posterior.
+
+En una migración real también funcionó sobre el mismo directorio de datos:
+
+1. Haz el volcado de arriba, ejecuta `SET GLOBAL innodb_fast_shutdown=0;` y para limpiamente el contenedor 10.11.
+2. Haz `chown -R 999:999` del directorio de datos: la MariaDB de Bitnami corre con el uid 1001 y la oficial con el 999.
+3. Móntalo en `/var/lib/mysql` (Bitnami usaba `/bitnami/mariadb/data`) y pon `MARIADB_AUTO_UPGRADE: "1"`.
+   - Sustituye `MARIADB_CHARACTER_SET` y `MARIADB_COLLATE` de Bitnami por `command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci`.
+   - Si la contraseña de root está vacía, añade también `MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "1"`.
+4. En el log verás que `mariadb-upgrade` se ejecuta una vez; usuarios y bases de datos quedan como estaban.
+
+## El nombre de host del contenedor
+
+Si tu Compose fija `hostname:` con el dominio del sitio, quítalo. Moodle hace algunas peticiones a su propia dirección (las comprobaciones del router, algunas tareas), y con ese nombre de host se quedan dentro del contenedor, donde nadie escucha en el 443. La imagen avisa al arrancar.
 
 ## HTTPS en el 8443
 

@@ -132,5 +132,15 @@ if ($action === 'theme-usage') {
     exit(0);
 }
 
-fwrite(STDERR, "usage: db.php wait|state|activities <module>|theme-usage <theme>\n");
+// Remove a core setting, e.g. the upgraderunning flag that a failed upgrade
+// leaves behind (Moodle refuses most scripts while it is in the future).
+if ($action === 'unset-config') {
+    $conn = connect($type);
+    $name = preg_replace('/[^a-z0-9_]/', '', $argv[2] ?? '');
+    $sql = "DELETE FROM {$prefix}config WHERE name = '$name'";
+    $type === 'pgsql' ? pg_query($conn, $sql) : $conn->query($sql);
+    exit(0);
+}
+
+fwrite(STDERR, "usage: db.php wait|state|activities <module>|theme-usage <theme>|unset-config <name>\n");
 exit(2);

@@ -95,7 +95,9 @@ These are applied once, when the site is created, and never again. Change them l
 | `MOODLE_CRON_LOG` | `errors` | `errors` prints cron output only when it fails; `full` prints every run. The last run is always in `moodledata/oksigenia/cron-last.log`. |
 | `MOODLE_AUTO_UPGRADE` | `on` | `off` refuses to start when an upgrade is needed, so you can run it yourself. |
 | `MOODLE_BACKUP_BEFORE_UPGRADE` | `on` | Database dump (and code archive) before every upgrade. |
-| `MOODLE_BACKUP_KEEP` | `2` | Backups kept in `moodledata/oksigenia/backups`. |
+| `MOODLE_BACKUP_KEEP` | `2` | Backups kept in `moodledata/oksigenia/backups`. The newest one taken before a version change is always kept. |
+| `MOODLE_ALLOW_REMOVED_PLUGINS` | `no` | `yes` lets an upgrade go ahead when it would uninstall plugins Moodle removed from core that the site still uses (Chat or Survey activities, the Classic theme). |
+| `MOODLE_RETRY_UPGRADE` | `no` | After a failed upgrade the container stops at every start, without new backups, until you fix the cause and start it once with `yes`. |
 | `OKSIGENIA_ACCESS` | `off` | See [Oksigenia Access](#oksigenia-access). |
 
 ### PHP and Apache
@@ -124,6 +126,19 @@ $CFG->forced_plugin_settings = ['theme_boost' => ['brandcolor' => '#0f6cbf']];
 $CFG->disablenotificationctas = ['marketplace', 'moodlecloud', 'partners', 'feedback'];
 ```
 
+## Extra tools (LaTeX, Graphviz, LibreOffice…)
+
+The image ships the tools most sites need: Ghostscript and Poppler for assignment PDF annotation, and the database clients for backups. Optional ones are left out to keep it small. Extend the image to add them; at every start it sets Moodle's paths for any of `latex`, `dvips`, `dvisvgm`, `convert`, `dot`, `python3` and `unoconv` it finds:
+
+```dockerfile
+FROM oksigenia/moodle:5.2
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        texlive-latex-base texlive-latex-recommended dvisvgm graphviz \
+    && rm -rf /var/lib/apt/lists/*
+```
+
+Build it from your Compose file with `build: .` instead of `image:`. The TeX filter's SVG output uses `dvisvgm`; its PNG and GIF outputs also need ImageMagick (add `imagemagick`).
+
 ## Volumes, ports and user
 
 | Path | Contents |
@@ -145,7 +160,7 @@ To upgrade, change the tag (for example from `5.2` to `5.3`) and recreate the co
 2. Replaces Moodle's core code and keeps your add-on plugins, `config.php` and anything else that is not core.
 3. Runs Moodle's upgrade in maintenance mode, purges the caches and starts the site.
 
-If the volume holds a newer Moodle than the image, or one Moodle cannot upgrade from directly, the container refuses to start and says why. Several containers sharing the same volumes (web replicas, a cron container) take turns: only one upgrades.
+If the volume holds a newer Moodle than the image, or one Moodle cannot upgrade from directly, the container refuses to start and says why. It also stops before changing anything when an add-on would make Moodle reject the upgrade (for example modules that still declare `FEATURE_GROUPMEMBERSONLY`, refused from 5.3), or when the upgrade would uninstall plugins removed from core that the site uses. If an upgrade fails half way, the site stays in maintenance mode and later starts stop straight away, so a restart loop cannot replace the good backup. Several containers sharing the same volumes (web replicas, a cron container) take turns: only one upgrades.
 
 ## Cron
 

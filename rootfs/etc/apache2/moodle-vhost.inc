@@ -17,8 +17,13 @@ AcceptPathInfo On
     AllowOverride None
     Require all granted
     DirectoryIndex index.php index.html
-    # Moodle router (4.5+): requests that match no file go to r.php.
-    FallbackResource /r.php
+    # Moodle router (4.5+): requests that match no file or directory go to
+    # r.php. mod_rewrite rather than FallbackResource, because PHP's handler
+    # takes nonexistent *.php URLs (Moodle's shims) before the fallback runs.
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ /r.php [L,QSA]
 </Directory>
 
 # Files Moodle recommends never serving over the web.

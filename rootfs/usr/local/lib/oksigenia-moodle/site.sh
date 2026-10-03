@@ -118,11 +118,49 @@ install_site() {
     fi
 }
 
+# A failed upgrade leaves a marker. Later starts stop right away instead of
+# retrying in a restart loop, which would take a new backup of a half-upgraded
+# database every time and rotate the good one away.
+UPGRADE_FAILED_MARKER_NAME=upgrade-failed
+
+check_failed_upgrade() {
+    local marker="${OKS_DATA_STATE}/${UPGRADE_FAILED_MARKER_NAME}"
+    [ -f "${marker}" ] || return 0
+    if is_on "${MOODLE_RETRY_UPGRADE:-no}"; then
+        warn "Retrying the upgrade that failed before (MOODLE_RETRY_UPGRADE is on)"
+        rm -f "${marker}"
+        OKS_RETRYING=yes
+        return 0
+    fi
+    die "a previous upgrade failed and the site is in maintenance mode:
+$(sed 's/^/        /' "${marker}")
+        Fix the cause (see the error above in an earlier log), then start the container with
+        MOODLE_RETRY_UPGRADE=yes, or delete ${marker}.
+        Backups taken before that upgrade are in ${OKS_DATA_STATE}/backups"
+}
+
+# When retrying, drop the upgraderunning flag left by the failed attempt and
+# the caches that may hold it; Apache is not running yet.
+clear_failed_upgrade_flag() {
+    [ "${OKS_RETRYING:-no}" = yes ] || return 0
+    php "${OKS_PHP}/db.php" unset-config upgraderunning || true
+    find "${MOODLE_DATA_DIR}/cache" "${MOODLE_DATA_DIR}/localcache" -mindepth 1 -maxdepth 1 \
+        -exec rm -rf {} + 2>/dev/null || true
+}
+
 upgrade_site() {
     local rc=0 out
     out="$(moodle_php admin/cli/upgrade.php --is-pending 2>&1)" || rc=$?
     case "${rc}" in
-        0) return 0 ;;
+        0)
+            # After a failed upgrade that needs nothing more, leave the
+            # maintenance mode that the failed attempt turned on.
+            if [ "${OKS_RETRYING:-no}" = yes ]; then
+                moodle_php admin/cli/maintenance.php --disable >/dev/null || true
+                moodle_php admin/cli/purge_caches.php >/dev/null || true
+            fi
+            return 0
+            ;;
         2) ;;
         *) printf '%s\n' "${out}" >&2; die "Moodle cannot start (upgrade check failed with code ${rc})" ;;
     esac
@@ -131,15 +169,40 @@ upgrade_site() {
     if is_on "${MOODLE_BACKUP_BEFORE_UPGRADE}" && [ "${OKS_DB_BACKED_UP:-no}" != yes ]; then
         backup_dir_new
         backup_database
-        backup_rotate
     fi
     log "Upgrading the Moodle database"
     moodle_php admin/cli/maintenance.php --enable >/dev/null || true
-    moodle_php admin/cli/upgrade.php --non-interactive \
-        || die "the database upgrade failed. The site stays in maintenance mode; backups are in ${OKS_DATA_STATE}/backups"
+    if ! moodle_php admin/cli/upgrade.php --non-interactive; then
+        printf 'when: %s\nimage: Moodle %s\nbackups: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "$(cat "${IMAGE_CODE}/.oksigenia-image-version")" "${OKS_BACKUP_DIR:-${OKS_DATA_STATE}/backups}" \
+            > "${OKS_DATA_STATE}/${UPGRADE_FAILED_MARKER_NAME}"
+        die "the database upgrade failed (error above). The site stays in maintenance mode.
+        Backups are in ${OKS_DATA_STATE}/backups. Later starts will stop here until you fix
+        the cause and start with MOODLE_RETRY_UPGRADE=yes."
+    fi
+    remove_deleted_standard_plugins
     moodle_php admin/cli/purge_caches.php >/dev/null || true
     moodle_php admin/cli/maintenance.php --disable >/dev/null || true
+    backup_rotate
     log "Database upgrade finished"
+}
+
+# Standard plugins that Moodle dropped from core stay registered with status
+# "delete" when Moodle's own upgrade does not remove them. Uninstall the ones
+# that hold nothing (blocks without instances, modules without activities),
+# then let Moodle finish the upgrade it asks for afterwards.
+remove_deleted_standard_plugins() {
+    local plugins rc=0
+    plugins="$(moodle_php "${OKS_PHP}/deleted-plugins.php" "${MOODLE_CODE_DIR}")" || return 0
+    [ -n "${plugins}" ] || return 0
+    log "Uninstalling standard plugins Moodle removed from core, unused here: ${plugins}"
+    moodle_php admin/cli/uninstall_plugins.php --plugins="${plugins}" --run >/dev/null \
+        || { warn "could not uninstall ${plugins}; uninstall them from Site administration > Plugins"; return 0; }
+    moodle_php admin/cli/upgrade.php --is-pending >/dev/null 2>&1 || rc=$?
+    if [ "${rc}" = 2 ]; then
+        moodle_php admin/cli/upgrade.php --non-interactive >/dev/null \
+            || warn "Moodle's upgrade after uninstalling ${plugins} failed; run: moodle-cli upgrade"
+    fi
 }
 
 # Extra language packs: installed when the list changes.

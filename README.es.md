@@ -97,7 +97,9 @@ Se aplican una vez, al crear el sitio, y nunca más. Después se cambian en la a
 | `MOODLE_CRON_LOG` | `errors` | Con `errors`, la salida del cron solo aparece cuando falla; con `full`, aparece la de todas las ejecuciones. La última ejecución siempre está en `moodledata/oksigenia/cron-last.log`. |
 | `MOODLE_AUTO_UPGRADE` | `on` | Con `off`, no arranca si hace falta actualizar, para que lo hagas tú. |
 | `MOODLE_BACKUP_BEFORE_UPGRADE` | `on` | Volcado de la base de datos (y archivo del código) antes de cada actualización. |
-| `MOODLE_BACKUP_KEEP` | `2` | Copias que se conservan en `moodledata/oksigenia/backups`. |
+| `MOODLE_BACKUP_KEEP` | `2` | Copias que se conservan en `moodledata/oksigenia/backups`. La última tomada antes de un cambio de versión se conserva siempre. |
+| `MOODLE_ALLOW_REMOVED_PLUGINS` | `no` | Con `yes`, la actualización sigue aunque vaya a desinstalar plugins que Moodle retiró del núcleo y que el sitio aún usa (actividades de Chat o Survey, el tema Classic). |
+| `MOODLE_RETRY_UPGRADE` | `no` | Tras una actualización fallida, el contenedor se detiene en cada arranque, sin hacer copias nuevas, hasta que corrijas la causa y lo arranques una vez con `yes`. |
 | `OKSIGENIA_ACCESS` | `off` | Véase [Oksigenia Access](#oksigenia-access). |
 
 ### PHP y Apache
@@ -126,6 +128,19 @@ $CFG->forced_plugin_settings = ['theme_boost' => ['brandcolor' => '#0f6cbf']];
 $CFG->disablenotificationctas = ['marketplace', 'moodlecloud', 'partners', 'feedback'];
 ```
 
+## Herramientas extra (LaTeX, Graphviz, LibreOffice…)
+
+La imagen trae las herramientas que necesitan casi todos los sitios: Ghostscript y Poppler para anotar PDF en las tareas, y los clientes de base de datos para las copias. Las opcionales se quedan fuera para que pese poco. Para añadirlas, extiende la imagen; en cada arranque configura en Moodle las rutas de `latex`, `dvips`, `dvisvgm`, `convert`, `dot`, `python3` y `unoconv` que encuentre:
+
+```dockerfile
+FROM oksigenia/moodle:5.2
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        texlive-latex-base texlive-latex-recommended dvisvgm graphviz \
+    && rm -rf /var/lib/apt/lists/*
+```
+
+Constrúyela desde tu Compose con `build: .` en lugar de `image:`. La salida SVG del filtro TeX usa `dvisvgm`; las salidas PNG y GIF necesitan además ImageMagick (añade `imagemagick`).
+
 ## Volúmenes, puertos y usuario
 
 | Ruta | Contenido |
@@ -147,7 +162,11 @@ Para actualizar, cambia la etiqueta (por ejemplo de `5.2` a `5.3`) y recrea el c
 2. Sustituye el núcleo de Moodle y conserva tus plugins, `config.php` y todo lo que no es del núcleo.
 3. Ejecuta la actualización de Moodle en modo mantenimiento, purga las cachés y arranca el sitio.
 
-Si el volumen tiene un Moodle más nuevo que la imagen, o uno desde el que Moodle no puede actualizar directamente, el contenedor no arranca y explica por qué. Si varios contenedores comparten los mismos volúmenes (réplicas web, un contenedor de cron), se turnan y solo uno actualiza.
+Si el volumen tiene un Moodle más nuevo que la imagen, o uno desde el que Moodle no puede actualizar directamente, el contenedor no arranca y explica por qué. También se detiene antes de tocar nada en dos casos:
+- un plugin de terceros haría que Moodle rechazara la actualización (por ejemplo, módulos que aún declaran `FEATURE_GROUPMEMBERSONLY`, que se rechazan desde la 5.3);
+- la actualización desinstalaría plugins retirados del núcleo que el sitio usa.
+
+Si una actualización falla a medias, el sitio queda en modo mantenimiento y los arranques siguientes se detienen enseguida, para que un bucle de reinicios no sustituya la copia buena. Si varios contenedores comparten los mismos volúmenes (réplicas web, un contenedor de cron), se turnan y solo uno actualiza.
 
 ## Cron
 

@@ -23,6 +23,16 @@ function on(string $value): bool {
     return in_array(strtolower($value), ['on', 'yes', 'true', '1'], true);
 }
 
+// First executable called $name in PATH, or null.
+function which(string $name): ?string {
+    foreach (explode(':', getenv('PATH') ?: '/usr/local/bin:/usr/bin:/bin') as $dir) {
+        if ($dir !== '' && is_file("$dir/$name") && is_executable("$dir/$name")) {
+            return "$dir/$name";
+        }
+    }
+    return null;
+}
+
 function export_value($v): string {
     return var_export($v, true);
 }
@@ -124,6 +134,18 @@ if ($mode === 'managed') {
         "\$CFG->pathtogs = '/usr/bin/gs';",
         "\$CFG->pathtopdftoppm = '/usr/bin/pdftoppm';",
     ];
+    // Optional tools: set their paths only when they are installed, for
+    // instance in an image that extends this one (see the README).
+    foreach (['pathtodot' => 'dot', 'pathtopython' => 'python3', 'pathtounoconv' => 'unoconv'] as $setting => $tool) {
+        if ($path = which($tool)) {
+            $lines[] = "\$CFG->$setting = " . export_value($path) . ';';
+        }
+    }
+    foreach (['pathlatex' => 'latex', 'pathdvips' => 'dvips', 'pathdvisvgm' => 'dvisvgm', 'pathconvert' => 'convert'] as $setting => $tool) {
+        if ($path = which($tool)) {
+            $lines[] = "\$CFG->forced_plugin_settings['filter_tex']['$setting'] = " . export_value($path) . ';';
+        }
+    }
     $url = env('MOODLE_URL');
     if ($url !== '' && env('OKS_LAYOUT') !== 'native') {
         // Native config.php already has it; a foreign one may build it from the Host header.

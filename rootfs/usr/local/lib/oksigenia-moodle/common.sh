@@ -7,7 +7,7 @@ OKS_RUNTIME_ENV=/tmp/oksigenia-moodle.env
 
 log()  { printf '[moodle] %s\n' "$*"; }
 warn() { printf '[moodle] WARNING: %s\n' "$*" >&2; }
-die()  { printf '[moodle] ERROR: %s\n' "$*" >&2; exit 1; }
+die()  { printf '[moodle] ERROR: %s\n' "$*" >&2; OKS_DIED=yes; exit 1; }
 
 # True for on/yes/true/1, false for off/no/false/0/empty.
 is_on() {

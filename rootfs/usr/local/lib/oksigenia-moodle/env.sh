@@ -132,6 +132,12 @@ resolve_env() {
     if [ -n "${MOODLE_URL}" ]; then
         local host="${MOODLE_URL#*://}"; host="${host%%/*}"; host="${host%%:*}"
         : "${APACHE_SERVER_NAME:=${host}}"
+        # Moodle calls itself at MOODLE_URL (router checks, some tasks). With
+        # the site's domain as the container hostname, those calls stay inside
+        # the container, where nothing listens on 443.
+        if [ "$(hostname)" = "${host}" ] || [ "$(hostname -f 2>/dev/null)" = "${host}" ]; then
+            warn "the container's hostname is ${host}; Moodle's requests to itself will not reach your proxy. Remove 'hostname:' from your Compose file."
+        fi
         # Moodle rejects addresses like admin@localhost.
         if [[ "${host}" == *.* && ! "${host}" =~ ^[0-9.]+$ ]]; then
             : "${MOODLE_ADMIN_EMAIL:=admin@${host}}"

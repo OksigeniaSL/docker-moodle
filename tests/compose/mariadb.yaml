@@ -22,6 +22,7 @@ services:
       MOODLE_ADMIN_PASSWORD: Admin-test-1
       OKSIGENIA_ACCESS: ${OKSIGENIA_ACCESS:-off}
       MOODLE_CRON_INTERVAL: "20"
+      MOODLE_RETRY_UPGRADE: ${MOODLE_RETRY_UPGRADE:-no}
     volumes:
       - moodle:/var/www/moodle
       - moodledata:/var/www/moodledata
