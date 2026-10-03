@@ -141,6 +141,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 Constrúyela desde tu Compose con `build: .` en lugar de `image:`. La salida SVG del filtro TeX usa `dvisvgm`; las salidas PNG y GIF necesitan además ImageMagick (añade `imagemagick`).
 
+Dos cosas sobre el filtro de notación TeX:
+- **Desde Moodle 5.3 hace falta LaTeX.** El filtro recurría al mimetex incluido cuando LaTeX faltaba o fallaba, y Moodle 5.3 ya no trae mimetex.
+- **Los textos con tildes necesitan UTF-8.** El preámbulo LaTeX por defecto de Moodle empieza con `\usepackage[latin1]{inputenc}`, y con él fallan las fórmulas que llevan tildes o eñes dentro de `\text{}`. Cámbialo por `\usepackage[utf8]{inputenc}` en *Administración del sitio → Extensiones → Filtros → Notación TeX*.
+
 ## Volúmenes, puertos y usuario
 
 | Ruta | Contenido |
@@ -166,7 +170,7 @@ Si el volumen tiene un Moodle más nuevo que la imagen, o uno desde el que Moodl
 - un plugin de terceros haría que Moodle rechazara la actualización (por ejemplo, módulos que aún declaran `FEATURE_GROUPMEMBERSONLY`, que se rechazan desde la 5.3);
 - la actualización desinstalaría plugins retirados del núcleo que el sitio usa.
 
-Si una actualización falla a medias, el sitio queda en modo mantenimiento y los arranques siguientes se detienen enseguida, para que un bucle de reinicios no sustituya la copia buena. Si varios contenedores comparten los mismos volúmenes (réplicas web, un contenedor de cron), se turnan y solo uno actualiza.
+Si una actualización falla a medias, el sitio queda en modo mantenimiento y los arranques siguientes se detienen enseguida, para que un bucle de reinicios no sustituya la copia buena. Ante cualquiera de estos problemas, el contenedor no sale: se queda esperando, marcado como no sano, porque una política de reinicio solo repetiría el mismo error. Corrige la causa y reinícialo. Si varios contenedores comparten los mismos volúmenes (réplicas web, un contenedor de cron), se turnan y solo uno actualiza.
 
 ## Cron
 

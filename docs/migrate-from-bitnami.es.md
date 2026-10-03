@@ -109,6 +109,14 @@ En una migración real también funcionó sobre el mismo directorio de datos:
    - Si la contraseña de root está vacía, añade también `MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "1"`.
 4. En el log verás que `mariadb-upgrade` se ejecuta una vez; usuarios y bases de datos quedan como estaban.
 
+## Fórmulas con el filtro de notación TeX
+
+Si tu sitio usa el filtro de notación TeX, comprueba qué genera hoy sus fórmulas. Las imágenes de Bitnami traen el ImageMagick 6 de Debian 12, cuya política bloquea PostScript, así que el filtro solía recurrir al mimetex incluido sin que nadie lo notara (las imágenes en caché son GIF87a). Moodle 5.3 ya no trae mimetex. Antes de pasar a la 5.3, extiende la imagen con LaTeX (véase *Herramientas extra* en el README) y pon el preámbulo en UTF-8 si las fórmulas llevan tildes.
+
+## Proxys que gestionan los certificados
+
+Algunos proxys que emiten los certificados por ti (por ejemplo, nginx-proxy con acme-companion) retiran el certificado de un sitio mientras su contenedor está parado. Solo lo reponen si la autoridad de certificación responde cuando el contenedor vuelve. Haz la migración en poco tiempo y comprueba después qué certificado sirve el sitio.
+
 ## El nombre de host del contenedor
 
 Si tu Compose fija `hostname:` con el dominio del sitio, quítalo. Moodle hace algunas peticiones a su propia dirección (las comprobaciones del router, algunas tareas), y con ese nombre de host se quedan dentro del contenedor, donde nadie escucha en el 443. La imagen avisa al arrancar.

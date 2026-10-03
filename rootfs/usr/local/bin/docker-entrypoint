@@ -19,8 +19,23 @@ set -euo pipefail
 . /usr/local/lib/oksigenia-moodle/site.sh
 
 [ -n "${MOODLE_ENTRYPOINT_DEBUG:-}" ] && set -x
-# Never stop without saying where (set -e exits silently otherwise).
-trap 'rc=$?; [ "${rc}" -ne 0 ] && [ -z "${OKS_DIED:-}" ] && printf "[moodle] ERROR: start-up stopped (exit code %s) at: %s\n" "${rc}" "${BASH_COMMAND}" >&2' EXIT
+# On a problem that needs a person (see die), stay up instead of exiting:
+# a restart policy would only repeat the same error every few seconds.
+# Transient problems (the database not answering yet) exit, so a restart
+# retries them. Never stop without saying where.
+on_exit() {
+    local rc=$?
+    [ "${rc}" -eq 0 ] && return 0
+    [ -n "${OKS_DIED:-}" ] || printf '[moodle] ERROR: start-up stopped (exit code %s) at: %s\n' "${rc}" "${BASH_COMMAND}" >&2
+    if [ -z "${OKS_TRANSIENT:-}" ] && [ "${ROLE:-}" != "" ]; then
+        exec 9>&-
+        printf '[moodle] The container stays up without retrying; fix the cause above, then restart it (docker compose restart moodle).\n' >&2
+        trap - EXIT
+        sleep infinity & wait $!
+        exit "${rc}"
+    fi
+}
+trap on_exit EXIT
 
 # The working directory may be replaced by a symlink below (bitnami layout).
 cd /

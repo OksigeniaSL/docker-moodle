@@ -37,7 +37,8 @@ write_managed_config() {
 
 wait_for_database() {
     log "Connecting to the ${OKS_DB_TYPE} database at ${OKS_DB_HOST}:${OKS_DB_PORT}"
-    OKS_DB_WAIT="${MOODLE_DB_WAIT_TIMEOUT}" php "${OKS_PHP}/db.php" wait || exit 1
+    # Transient: exit, so that a restart policy tries again.
+    OKS_DB_WAIT="${MOODLE_DB_WAIT_TIMEOUT}" php "${OKS_PHP}/db.php" wait || { OKS_TRANSIENT=yes; exit 1; }
     OKS_DB_STATE="$(php "${OKS_PHP}/db.php" state)" || die "cannot inspect the database"
     case "${OKS_DB_STATE}" in
         installed|empty) ;;

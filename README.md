@@ -139,6 +139,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 Build it from your Compose file with `build: .` instead of `image:`. The TeX filter's SVG output uses `dvisvgm`; its PNG and GIF outputs also need ImageMagick (add `imagemagick`).
 
+Two things about the TeX notation filter:
+- **LaTeX is required from Moodle 5.3.** The filter used to fall back to the bundled mimetex when LaTeX was missing or failed; Moodle 5.3 no longer ships mimetex.
+- **Accented text needs UTF-8.** Moodle's default LaTeX preamble starts with `\usepackage[latin1]{inputenc}`, and formulas with accented letters inside `\text{}` fail with it. Change it to `\usepackage[utf8]{inputenc}` in *Site administration → Plugins → Filters → TeX notation*.
+
 ## Volumes, ports and user
 
 | Path | Contents |
@@ -160,7 +164,7 @@ To upgrade, change the tag (for example from `5.2` to `5.3`) and recreate the co
 2. Replaces Moodle's core code and keeps your add-on plugins, `config.php` and anything else that is not core.
 3. Runs Moodle's upgrade in maintenance mode, purges the caches and starts the site.
 
-If the volume holds a newer Moodle than the image, or one Moodle cannot upgrade from directly, the container refuses to start and says why. It also stops before changing anything when an add-on would make Moodle reject the upgrade (for example modules that still declare `FEATURE_GROUPMEMBERSONLY`, refused from 5.3), or when the upgrade would uninstall plugins removed from core that the site uses. If an upgrade fails half way, the site stays in maintenance mode and later starts stop straight away, so a restart loop cannot replace the good backup. Several containers sharing the same volumes (web replicas, a cron container) take turns: only one upgrades.
+If the volume holds a newer Moodle than the image, or one Moodle cannot upgrade from directly, the container refuses to start and says why. It also stops before changing anything when an add-on would make Moodle reject the upgrade (for example modules that still declare `FEATURE_GROUPMEMBERSONLY`, refused from 5.3), or when the upgrade would uninstall plugins removed from core that the site uses. If an upgrade fails half way, the site stays in maintenance mode and later starts stop straight away, so a restart loop cannot replace the good backup. On any of these problems the container stays up and waits, unhealthy, instead of exiting: a restart policy would only repeat the same error. Fix the cause and restart it. Several containers sharing the same volumes (web replicas, a cron container) take turns: only one upgrades.
 
 ## Cron
 

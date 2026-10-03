@@ -52,6 +52,7 @@ wait_healthy() {
         case "${state}" in
             exited|dead) fail "moodle container stopped (exit code $(docker inspect -f '{{.State.ExitCode}}' "${id}"))" ;;
         esac
+        compose logs moodle 2>/dev/null | grep -q 'stays up without retrying' && fail "moodle is waiting after an error"
         [ "${health}" = healthy ] && return 0
         status="${state}/${health}"
         [ "$(date +%s)" -lt "${deadline}" ] || fail "moodle not healthy after ${WAIT_INSTALL}s (status: ${status})"
@@ -192,16 +193,19 @@ case "${SCENARIO}" in
         add_test_plugin "${dir}" www-data:www-data oksifail
         compose restart moodle
         deadline=$(( $(date +%s) + 600 ))
-        until [ "$(docker inspect -f '{{.State.Status}}' "$(compose ps -a -q moodle)")" = exited ]; do
-            [ "$(date +%s)" -lt "${deadline}" ] || fail "the failing upgrade did not stop the container"
+        until compose logs moodle 2>/dev/null | grep -q 'stays up without retrying'; do
+            [ "$(date +%s)" -lt "${deadline}" ] || fail "the failing upgrade did not stop the start-up"
             sleep 5
         done
+        compose logs moodle | grep -q 'the database upgrade failed' || fail "the upgrade failure was not reported"
+        [ "$(docker inspect -f '{{.State.Status}}' "$(compose ps -a -q moodle)")" = running ] \
+            || fail "after the failure the container should wait, not exit"
         count_backups() { compose run --rm --no-deps --entrypoint sh moodle -c 'ls /var/www/moodledata/oksigenia/backups | wc -l'; }
         first="$(count_backups)"
-        log "Start again: it must stop at once, without a new backup"
-        compose start moodle
-        sleep 20
-        compose logs moodle | grep -q 'a previous upgrade failed' || fail "second start did not report the failed upgrade"
+        log "Restart: it must stop at once, without a new backup"
+        compose restart moodle
+        sleep 25
+        compose logs --since 30s moodle | grep -q 'a previous upgrade failed' || fail "the restart did not report the failed upgrade"
         [ "$(count_backups)" = "${first}" ] || fail "a new backup was taken after the failed upgrade"
         echo "no new backup after the failed upgrade (${first} kept)"
         log "Fix the cause and retry with MOODLE_RETRY_UPGRADE=yes"
