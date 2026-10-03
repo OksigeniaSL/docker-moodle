@@ -1,0 +1,31 @@
+# Clean install with MariaDB.
+services:
+  db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_DATABASE: moodle
+      MARIADB_USER: moodle
+      MARIADB_PASSWORD: moodle-test
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      retries: 30
+    mem_limit: 1g
+  moodle:
+    image: ${IMAGE:?}
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      MOODLE_URL: http://localhost:8080
+      MOODLE_DB_PASSWORD: moodle-test
+      MOODLE_ADMIN_PASSWORD: Admin-test-1
+      OKSIGENIA_ACCESS: ${OKSIGENIA_ACCESS:-off}
+      MOODLE_CRON_INTERVAL: "20"
+    volumes:
+      - moodle:/var/www/moodle
+      - moodledata:/var/www/moodledata
+    mem_limit: 1536m
+volumes:
+  moodle: {}
+  moodledata: {}

@@ -1,0 +1,21 @@
+{
+  "access": {
+    "version": "0.5.3",
+    "sha256": "ec74e066b83df9e0a54467d1bac67ab67a7565d15491dc52b4f3ea219cb30cde"
+  },
+  "branches": {
+    "4.5": {
+      "moodle": "4.5.14",
+      "sha256": "b8da2dd90a29b88980d2c5ef6bf90bdfca200c366fdbc4e50f3d29d0dcbcb6cf",
+      "php": "8.3",
+      "lts": true
+    },
+    "5.2": {
+      "moodle": "5.2.3",
+      "sha256": "918c4bed6639056d1a3fcca37747ad95c4ec988024d2ef6b662897bcee55a581",
+      "php": "8.4",
+      "lts": false
+    }
+  },
+  "latest": "5.2"
+}

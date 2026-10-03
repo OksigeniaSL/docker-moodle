@@ -1,0 +1,57 @@
+# Daily check for new Moodle point releases and Oksigenia Access releases.
+# Opens a pull request that updates versions.json and runs CI on it; merging
+# it triggers the release. A new Moodle branch opens an issue instead,
+# because adding or retiring a branch is a decision for a maintainer.
+name: Update versions
+
+on:
+  schedule:
+    - cron: '23 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: check
+        run: .github/scripts/update-versions.sh >> "$GITHUB_OUTPUT"
+
+      - name: Pull request
+        if: steps.check.outputs.changed == 'yes'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUMMARY: ${{ steps.check.outputs.summary }}
+        run: |
+          set -euo pipefail
+          branch="update/$(echo "${SUMMARY}" | tr -cs 'A-Za-z0-9.' '-' | sed 's/-$//' | tr 'A-Z' 'a-z')"
+          if git ls-remote --exit-code --heads origin "${branch}" > /dev/null; then
+            echo "Branch ${branch} already exists"; exit 0
+          fi
+          git config user.name "Oksigenia SL"
+          git config user.email "dev@oksigenia.com"
+          git switch -c "${branch}"
+          git commit -am "Update to ${SUMMARY}"
+          git push origin "${branch}"
+          gh pr create --base main --head "${branch}" --title "Update to ${SUMMARY}" \
+            --body "Automatic update of \`versions.json\`. The SHA-256 published by Moodle was checked against the downloaded package. CI runs the full test suite on this branch; merging publishes new images."
+          # Pull requests opened with GITHUB_TOKEN do not trigger workflows; dispatch CI.
+          gh workflow run ci.yml --ref "${branch}"
+
+      - name: Issue for a new Moodle branch
+        if: steps.check.outputs.newbranch != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEWBRANCH: ${{ steps.check.outputs.newbranch }}
+        run: |
+          title="Moodle ${NEWBRANCH} is out: add it to versions.json"
+          if gh issue list --state all --search "in:title \"${title}\"" --json number --jq 'length' | grep -qv '^0$'; then
+            exit 0
+          fi
+          gh issue create --title "${title}" --body "Moodle ${NEWBRANCH}.0 has been released. Add the branch to \`versions.json\` (PHP version, SHA-256), decide whether it becomes \`latest\`/\`lts\`, and retire the branch that leaves security support."

@@ -1,0 +1,39 @@
+# A bitnami/moodle deployment as its README shows it. The test starts it
+# with bitnamilegacy/moodle, then swaps only the image for ours.
+services:
+  mariadb:
+    image: bitnamilegacy/mariadb:11.4
+    environment:
+      ALLOW_EMPTY_PASSWORD: "yes"
+      MARIADB_USER: bn_moodle
+      MARIADB_DATABASE: bitnami_moodle
+      MARIADB_CHARACTER_SET: utf8mb4
+      MARIADB_COLLATE: utf8mb4_unicode_ci
+    volumes:
+      - mariadb_data:/bitnami/mariadb
+    healthcheck:
+      test: ["CMD", "/opt/bitnami/scripts/mariadb/healthcheck.sh"]
+      interval: 5s
+      retries: 60
+    mem_limit: 1g
+  moodle:
+    image: ${MOODLE_IMAGE:?}
+    depends_on:
+      mariadb: { condition: service_healthy }
+    environment:
+      MOODLE_USERNAME: user
+      MOODLE_PASSWORD: Bitnami-test-1
+      MOODLE_DATABASE_HOST: mariadb
+      MOODLE_DATABASE_PORT_NUMBER: "3306"
+      MOODLE_DATABASE_USER: bn_moodle
+      MOODLE_DATABASE_NAME: bitnami_moodle
+      ALLOW_EMPTY_PASSWORD: "yes"
+      MOODLE_CRON_MINUTES: "1"
+    volumes:
+      - moodle_data:/bitnami/moodle
+      - moodledata_data:/bitnami/moodledata
+    mem_limit: 1536m
+volumes:
+  mariadb_data: {}
+  moodle_data: {}
+  moodledata_data: {}

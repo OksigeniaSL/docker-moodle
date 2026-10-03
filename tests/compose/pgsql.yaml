@@ -1,0 +1,30 @@
+# Clean install with PostgreSQL.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: moodle
+      POSTGRES_USER: moodle
+      POSTGRES_PASSWORD: moodle-test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moodle -d moodle"]
+      interval: 5s
+      retries: 30
+    mem_limit: 1g
+  moodle:
+    image: ${IMAGE:?}
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      MOODLE_URL: http://localhost:8080
+      MOODLE_DB_TYPE: pgsql
+      MOODLE_DB_PASSWORD: moodle-test
+      MOODLE_ADMIN_PASSWORD: Admin-test-1
+      MOODLE_CRON_INTERVAL: "20"
+    volumes:
+      - moodle:/var/www/moodle
+      - moodledata:/var/www/moodledata
+    mem_limit: 1536m
+volumes:
+  moodle: {}
+  moodledata: {}

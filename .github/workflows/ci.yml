@@ -1,0 +1,122 @@
+# Lint, build every supported branch and run the end-to-end tests.
+# Runs on pull requests and pushes; it never publishes anything.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: ShellCheck
+        run: |
+          docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:stable -x -P SCRIPTDIR \
+            rootfs/usr/local/bin/docker-entrypoint rootfs/usr/local/bin/moodle-cli \
+            rootfs/usr/local/bin/moodle-healthcheck rootfs/usr/local/lib/oksigenia-moodle/run.sh \
+            tests/run.sh .github/scripts/*.sh
+      - name: Hadolint
+        run: docker run --rm -i hadolint/hadolint:latest hadolint --ignore DL3008 --ignore DL4006 - < Dockerfile
+      - name: PHP syntax
+        run: |
+          docker run --rm -v "$PWD:/mnt:ro" -w /mnt php:8.4-cli \
+            sh -c 'for f in rootfs/usr/local/lib/oksigenia-moodle/php/*.php tests/fixtures/*/*.php; do php -l "$f" || exit 1; done'
+      - name: versions.json
+        run: jq -e '.branches | length > 0' versions.json
+
+  matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      branches: ${{ steps.m.outputs.branches }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: m
+        run: echo "branches=$(jq -c '.branches | keys' versions.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: [lint, matrix]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJSON(needs.matrix.outputs.branches) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - id: args
+        run: .github/scripts/build-args.sh "${{ matrix.branch }}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          build-args: ${{ steps.args.outputs.args }}
+          tags: moodle-test:${{ matrix.branch }}
+          outputs: type=docker,dest=${{ runner.temp }}/image.tar
+          cache-from: type=gha,scope=${{ matrix.branch }}-amd64
+          cache-to: type=gha,mode=max,scope=${{ matrix.branch }}-amd64
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: image-${{ matrix.branch }}
+          path: ${{ runner.temp }}/image.tar
+          retention-days: 3
+
+  test:
+    needs: [matrix, build]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJSON(needs.matrix.outputs.branches) }}
+        scenario: [install-mariadb, install-pgsql, access, bitnami]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: image-${{ matrix.branch }}
+          path: ${{ runner.temp }}
+      - run: docker load -i "${{ runner.temp }}/image.tar"
+      - name: ${{ matrix.scenario }}
+        env:
+          IMAGE: moodle-test:${{ matrix.branch }}
+        run: |
+          if [ "${{ matrix.scenario }}" = bitnami ]; then
+            # Migrate from the newest bitnamilegacy release that this branch can upgrade.
+            case "${{ matrix.branch }}" in
+              4.5) export BITNAMI_IMAGE=bitnamilegacy/moodle:4.5.4 ;;
+              *)   export BITNAMI_IMAGE=bitnamilegacy/moodle:5.0.2 ;;
+            esac
+          fi
+          tests/run.sh "${{ matrix.scenario }}"
+
+  # From the LTS to the newest branch, with an add-on installed.
+  upgrade:
+    needs: [build]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: b
+        run: |
+          echo "old=$(jq -r '[.branches | to_entries[] | select(.value.lts) | .key][0]' versions.json)" >> "$GITHUB_OUTPUT"
+          echo "new=$(jq -r '.latest' versions.json)" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: image-*
+          path: ${{ runner.temp }}/images
+      - run: for f in "${{ runner.temp }}"/images/*/image.tar; do docker load -i "$f"; done
+      - name: upgrade ${{ steps.b.outputs.old }} -> ${{ steps.b.outputs.new }}
+        if: steps.b.outputs.old != steps.b.outputs.new
+        env:
+          IMAGE_OLD: moodle-test:${{ steps.b.outputs.old }}
+          IMAGE: moodle-test:${{ steps.b.outputs.new }}
+        run: tests/run.sh upgrade

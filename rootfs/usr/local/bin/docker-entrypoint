@@ -1,0 +1,81 @@
+#!/bin/bash
+# Entrypoint of oksigenia/moodle.
+#
+#   all   Apache and cron (default)
+#   web   Apache only
+#   cron  cron only, for a separate container sharing the same volumes
+#
+# Anything else is executed as a command, e.g. `docker run ... bash`.
+
+set -euo pipefail
+
+# shellcheck source=../lib/oksigenia-moodle/common.sh
+. /usr/local/lib/oksigenia-moodle/common.sh
+# shellcheck source=../lib/oksigenia-moodle/env.sh
+. /usr/local/lib/oksigenia-moodle/env.sh
+# shellcheck source=../lib/oksigenia-moodle/code.sh
+. /usr/local/lib/oksigenia-moodle/code.sh
+# shellcheck source=../lib/oksigenia-moodle/site.sh
+. /usr/local/lib/oksigenia-moodle/site.sh
+
+[ -n "${MOODLE_ENTRYPOINT_DEBUG:-}" ] && set -x
+
+ROLE="${1:-all}"
+case "${ROLE}" in
+    all|web|cron) ;;
+    *) exec "$@" ;;
+esac
+
+detect_layout
+
+# Root only fixes volume ownership, then the rest runs as www-data.
+if is_root; then
+    fix_permissions
+    exec setpriv --reuid=www-data --regid=www-data --init-groups -- "$0" "$@"
+fi
+check_permissions
+
+resolve_env
+code_paths
+link_code_dir
+log "oksigenia/moodle: Moodle $(cat "${IMAGE_CODE}/.oksigenia-image-version"), role ${ROLE}, ${OKS_LAYOUT} layout"
+
+# Only one container at a time may update the code or the database; others
+# sharing the volumes (web replicas, a cron container) wait here.
+mkdir -p "${OKS_STATE}"
+exec 9> "${OKS_STATE}/lock"
+if ! flock -n 9; then
+    log "Another container is preparing this site; waiting"
+    flock 9
+fi
+
+sync_code
+prepare_config
+setup_tls
+wait_for_database
+apply_code_update
+sync_access
+write_managed_config
+
+if [ "${OKS_DB_STATE}" = empty ]; then
+    [ "${OKS_CONFIG}" = native ] || die "config.php points to an empty database; refusing to install over it"
+    install_site
+fi
+upgrade_site
+sync_langs
+sync_redis_cache
+run_init_scripts
+
+flock -u 9
+exec 9>&-
+
+cat > "${OKS_RUNTIME_ENV}" <<EOF
+OKS_ROLE=${ROLE}
+MOODLE_CODE_DIR=${MOODLE_CODE_DIR}
+MOODLE_DATA_DIR=${MOODLE_DATA_DIR}
+APACHE_HTTP_PORT=${APACHE_HTTP_PORT}
+MOODLE_CRON_INTERVAL=${MOODLE_CRON_INTERVAL}
+EOF
+
+log "Moodle is ready at ${MOODLE_URL:-the address in config.php}"
+exec /usr/local/lib/oksigenia-moodle/run.sh "${ROLE}"

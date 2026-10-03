@@ -1,0 +1,47 @@
+# Moodle(TM) with MariaDB, ready to run:
+#
+#   docker compose up -d
+#
+# Then open MOODLE_URL. The first start installs Moodle, which takes a few
+# minutes; `docker compose logs -f moodle` shows the progress.
+# Change the three passwords and MOODLE_URL before using it for real.
+
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: moodle
+      MARIADB_USER: moodle
+      MARIADB_PASSWORD: change-me-db
+      MARIADB_ROOT_PASSWORD: change-me-root
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      retries: 30
+
+  moodle:
+    image: oksigenia/moodle:5.2
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      MOODLE_URL: http://localhost:8080
+      MOODLE_DB_PASSWORD: change-me-db
+      MOODLE_ADMIN_PASSWORD: change-me-admin
+      # MOODLE_LANG: es
+      # MOODLE_TIMEZONE: Europe/Madrid
+      # OKSIGENIA_ACCESS: "on"   # accessibility panel, see the README
+    volumes:
+      - moodle:/var/www/moodle
+      - moodledata:/var/www/moodledata
+
+volumes:
+  db: {}
+  moodle: {}
+  moodledata: {}

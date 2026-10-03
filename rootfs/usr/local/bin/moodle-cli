@@ -1,0 +1,33 @@
+#!/bin/bash
+# Runs a Moodle CLI script as www-data from the right directory.
+#
+#   moodle-cli upgrade --non-interactive      -> admin/cli/upgrade.php
+#   moodle-cli cfg --name=debug --set=0       -> admin/cli/cfg.php
+#   moodle-cli admin/tool/task/cli/schedule_task.php --list
+#
+# Usage from the host: docker compose exec moodle moodle-cli <script> [args]
+
+set -euo pipefail
+
+if [ $# -eq 0 ] || [ "$1" = -h ] || [ "$1" = --help ]; then
+    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+    exit 0
+fi
+
+code_dir=/var/www/moodle
+if [ -r /tmp/oksigenia-moodle.env ]; then
+    code_dir="$(sed -n 's/^MOODLE_CODE_DIR=//p' /tmp/oksigenia-moodle.env)"
+fi
+
+script="$1"; shift
+case "${script}" in
+    */*|*.php) path="${script}" ;;
+    *) path="admin/cli/${script}.php" ;;
+esac
+[ -f "${code_dir}/${path}" ] || { echo "moodle-cli: ${code_dir}/${path} not found" >&2; exit 1; }
+
+cd "${code_dir}"
+if [ "$(id -u)" = 0 ]; then
+    exec setpriv --reuid=www-data --regid=www-data --init-groups -- php "${path}" "$@"
+fi
+exec php "${path}" "$@"

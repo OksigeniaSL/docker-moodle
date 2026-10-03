@@ -1,0 +1,20 @@
+#!/bin/bash
+# Docker HEALTHCHECK. Web roles: Moodle answers and reaches the database.
+# Cron role: the cron loop ran recently.
+
+set -u
+
+[ -r /tmp/oksigenia-moodle.env ] || exit 1   # still starting
+# shellcheck disable=SC1091
+. /tmp/oksigenia-moodle.env
+
+if [ "${OKS_ROLE}" = cron ]; then
+    log="${MOODLE_DATA_DIR}/oksigenia/cron-last.log"
+    [ -f "${log}" ] || exit 1
+    age=$(( $(date +%s) - $(stat -c %Y "${log}") ))
+    [ "${age}" -lt $(( MOODLE_CRON_INTERVAL * 3 + 600 )) ]
+    exit $?
+fi
+
+body="$(curl -fsS -m 8 "http://127.0.0.1:${APACHE_HTTP_PORT}/_oksigenia/health" 2>/dev/null)" || exit 1
+[ "${body}" = OK ]
