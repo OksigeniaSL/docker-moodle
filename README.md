@@ -119,6 +119,8 @@ The image writes `config.php` at every start, from the variables above. For anyt
 <?php // /etc/moodle/config.d/50-local.php
 $CFG->debug = 0;
 $CFG->forced_plugin_settings = ['theme_boost' => ['brandcolor' => '#0f6cbf']];
+// Moodle 5.3+: hide Moodle HQ's promotional cards on the admin notifications page.
+$CFG->disablenotificationctas = ['marketplace', 'moodlecloud', 'partners', 'feedback'];
 ```
 
 ## Volumes, ports and user

@@ -121,6 +121,8 @@ La imagen escribe `config.php` en cada arranque a partir de las variables anteri
 <?php // /etc/moodle/config.d/50-local.php
 $CFG->debug = 0;
 $CFG->forced_plugin_settings = ['theme_boost' => ['brandcolor' => '#0f6cbf']];
+// Moodle 5.3+: oculta las tarjetas promocionales de Moodle HQ en la página de notificaciones del administrador.
+$CFG->disablenotificationctas = ['marketplace', 'moodlecloud', 'partners', 'feedback'];
 ```
 
 ## Volúmenes, puertos y usuario
