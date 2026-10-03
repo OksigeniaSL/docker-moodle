@@ -16,6 +16,14 @@ trap 'rm -rf "${tmp}"' EXIT
 
 sha256_of() { curl -fsSL --retry 3 "$1" | sha256sum | cut -d' ' -f1; }
 
+# Moodle uploads packages a few days before it announces a release, and can
+# still withdraw them. Only versions listed on the public download pages
+# count as released.
+announced="$(for page in latest supported security; do
+    curl -fsSL --retry 3 -A "Mozilla/5.0" "https://download.moodle.org/releases/${page}/" || true
+done | grep -oE 'moodle-[0-9]+\.[0-9]+\.[0-9]+\.tgz' | sed 's/^moodle-//; s/\.tgz$//' | sort -uV)"
+is_announced() { grep -qxF "$1" <<< "${announced}"; }
+
 moodle_tags="$(git ls-remote --tags --refs https://github.com/moodle/moodle.git 'v*' \
     | sed -n 's#.*refs/tags/v\([0-9]*\.[0-9]*\.[0-9]*\)$#\1#p' | sort -V)"
 
@@ -23,6 +31,10 @@ moodle_tags="$(git ls-remote --tags --refs https://github.com/moodle/moodle.git 
 # package (Moodle tags a release in git a few days before it ships it).
 for branch in $(jq -r '.branches | to_entries[] | select(.value.pending == true) | .key' "${v}"); do
     version="$(jq -r --arg b "${branch}" '.branches[$b].moodle' "${v}")"
+    if ! is_announced "${version}"; then
+        echo "Moodle ${version} is not announced yet; trying again later" >&2
+        continue
+    fi
     major="${branch%%.*}"; minor="${branch#*.}"
     url="https://download.moodle.org/download.php/direct/stable${major}$(printf '%02d' "${minor}")/moodle-${version}.tgz"
     published="$(curl -fsSL "${url}.sha256" 2>/dev/null | awk '{print $NF}' || true)"
@@ -48,6 +60,10 @@ for branch in $(jq -r '.branches | to_entries[] | select(.value.pending != true)
     latest="$(grep -E "^${branch//./\\.}\.[0-9]+$" <<< "${moodle_tags}" | tail -1 || true)"
     [ -n "${latest}" ] || continue
     [ "$(printf '%s\n%s\n' "${current}" "${latest}" | sort -V | tail -1)" = "${current}" ] && continue
+    if ! is_announced "${latest}"; then
+        echo "Moodle ${latest} is tagged but not announced yet; trying again later" >&2
+        continue
+    fi
 
     major="${branch%%.*}"; minor="${branch#*.}"
     url="https://download.moodle.org/download.php/direct/stable${major}$(printf '%02d' "${minor}")/moodle-${latest}.tgz"
