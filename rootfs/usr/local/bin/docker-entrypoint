@@ -20,6 +20,9 @@ set -euo pipefail
 
 [ -n "${MOODLE_ENTRYPOINT_DEBUG:-}" ] && set -x
 
+# The working directory may be replaced by a symlink below (bitnami layout).
+cd /
+
 ROLE="${1:-all}"
 case "${ROLE}" in
     all|web|cron) ;;

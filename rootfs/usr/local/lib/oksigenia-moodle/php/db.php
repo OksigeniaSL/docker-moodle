@@ -1,10 +1,10 @@
 <?php
 // Database checks that run before Moodle can boot.
 //
-// Usage: php db.php wait|state|count <table>
+// Usage: php db.php wait|state|activities <module>
 //   wait   retry until the database accepts connections (OKS_DB_WAIT seconds)
 //   state  print "installed", "empty" or "partial"
-//   count  rows in a Moodle table (name without prefix), -1 if missing
+//   activities  number of activities of a module in courses
 //
 // Connection settings come from the OKS_DB_* environment variables.
 
@@ -102,14 +102,15 @@ if ($action === 'state') {
     exit(0);
 }
 
-// Number of rows in a Moodle table (without prefix), or -1 if it does not exist.
-if ($action === 'count') {
+// Number of activities of a module (e.g. "chat") in courses, 0 if none.
+if ($action === 'activities') {
     $conn = connect($type);
-    $table = $prefix . preg_replace('/[^a-z0-9_]/', '', $argv[2] ?? '');
-    $n = query_one($conn, $type, "SELECT COUNT(*) FROM $table");
-    echo ($n === null ? -1 : (int) $n), "\n";
+    $module = preg_replace('/[^a-z0-9_]/', '', $argv[2] ?? '');
+    $n = query_one($conn, $type, "SELECT COUNT(*) FROM {$prefix}course_modules cm
+        JOIN {$prefix}modules m ON m.id = cm.module WHERE m.name = '$module'");
+    echo (int) $n, "\n";
     exit(0);
 }
 
-fwrite(STDERR, "usage: db.php wait|state|count <table>\n");
+fwrite(STDERR, "usage: db.php wait|state|activities <module>\n");
 exit(2);

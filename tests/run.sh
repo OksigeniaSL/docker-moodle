@@ -66,6 +66,14 @@ http_body() {
     compose exec -T moodle curl -s "http://localhost:8080$1"
 }
 
+# True if the page contains the text. The body is read in full first: with
+# pipefail, `curl | grep -q` fails whenever grep stops reading early.
+page_has() {
+    local body
+    body="$(http_body "$1")"
+    grep -qF -- "$2" <<< "${body}"
+}
+
 expect_status() {
     local got
     got="$(http_status "$1")"
@@ -121,7 +129,8 @@ basic_checks() {
 add_test_plugin() {
     local dir="$1"
     compose cp "${HERE}/fixtures/local_oksitest" "moodle:${dir}/local/oksitest"
-    compose exec -T -u 0 moodle chown -R "$2" "${dir}/local/oksitest"
+    # As if an administrator had copied it by hand: owned by $2, not group-writable.
+    compose exec -T -u 0 moodle sh -c "chown -R '$2' '${dir}/local/oksitest' && chmod -R u=rwX,go=rX '${dir}/local/oksitest'"
 }
 
 case "${SCENARIO}" in
@@ -146,16 +155,16 @@ case "${SCENARIO}" in
         cli cfg --name=forcelogin --set=0 >/dev/null
         page=/course/index.php
         expect_status "${page}" 200
-        http_body "${page}" | grep -q '<oksigenia-access-panel' && fail "Access is active although OKSIGENIA_ACCESS is off"
+        page_has "${page}" '<oksigenia-access-panel' && fail "Access is active although OKSIGENIA_ACCESS is off"
         log "OKSIGENIA_ACCESS=on installs and enables it"
         OKSIGENIA_ACCESS=on compose up -d moodle
         wait_healthy
         [ -n "$(plugin_version local_oksigeniaaccess)" ] || fail "Access is not installed"
-        http_body "${page}" | grep -q '<oksigenia-access-panel' || fail "Access panel not rendered"
+        page_has "${page}" '<oksigenia-access-panel' || fail "Access panel not rendered"
         log "OKSIGENIA_ACCESS=off again disables it without uninstalling"
         OKSIGENIA_ACCESS=off compose up -d moodle
         wait_healthy
-        http_body "${page}" | grep -q '<oksigenia-access-panel' && fail "Access still active after OKSIGENIA_ACCESS=off"
+        page_has "${page}" '<oksigenia-access-panel' && fail "Access still active after OKSIGENIA_ACCESS=off"
         echo "Access: off by default, on and off by variable"
         ;;
 

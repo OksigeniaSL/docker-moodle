@@ -16,7 +16,7 @@ Cuando el contenedor arranca y encuentra una instalación de `bitnami/moodle` en
 4. **Ejecuta la actualización de la base de datos de Moodle** y configura lo que esperan las versiones nuevas, como el router de URL.
 5. **Arranca Apache y el cron** como `www-data`, en los mismos puertos 8080 y 8443.
 
-Los volúmenes conservan sus dueños. Los ficheros de Bitnami son de `daemon:root`, y el usuario de la imagen puede escribirlos gracias a sus grupos. Así puedes volver a la imagen de Bitnami si lo necesitas (véase [Volver atrás](#volver-atrás)).
+`/bitnami/moodledata` conserva sus dueños: los ficheros de Bitnami son de `daemon`, y el usuario de la imagen los escribe gracias a sus grupos. El código de `/bitnami/moodle` pasa a `www-data`, porque su núcleo se sustituye en cada actualización. El árbol anterior, con sus dueños originales, queda en la copia, así que puedes volver a la imagen de Bitnami si lo necesitas (véase [Volver atrás](#volver-atrás)).
 
 ## Qué etiqueta elegir
 
@@ -106,14 +106,14 @@ Si usabas el puerto 8443 de Bitnami:
 
 ## Volver atrás
 
-La imagen no cambia los dueños de tus volúmenes y guarda todo lo que sustituye en `/bitnami/moodledata/oksigenia/backups/<fecha>/`:
+La imagen guarda todo lo que sustituye en `/bitnami/moodledata/oksigenia/backups/<fecha>/`:
 
 - `database.sql.gz` (o `database.pgdump` en PostgreSQL), la base de datos antes de actualizar;
 - `code.tar.gz`, el `/bitnami/moodle` anterior.
 
 Para volver a la imagen de Bitnami:
 1. Restaura la base de datos con ese volcado.
-2. Restaura `/bitnami/moodle` desde `code.tar.gz`.
+2. Restaura `/bitnami/moodle` desde `code.tar.gz`, como root para que vuelvan los dueños originales. Vacía antes el volumen y después extrae el archivo dentro: `tar -xzpf code.tar.gz -C /bitnami/moodle`.
 3. Vuelve a poner la línea `image:` anterior.
 
 Una base de datos que Moodle ya ha actualizado no sirve con el código de un Moodle anterior; por eso el volcado se hace primero.

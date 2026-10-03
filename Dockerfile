@@ -47,6 +47,14 @@ RUN if php -r '$c = json_decode(file_get_contents("composer.json"), true); \
         rm -rf /root/.composer /root/.cache /var/lib/apt/lists/*; \
     fi
 
+# Only mariadb-dump is needed for backups. The full mariadb-client package
+# brings Perl and ~100 MB with it; the dump tool alone links only against
+# libraries the runtime image already has.
+RUN apt-get update; \
+    apt-get install -y --no-install-recommends mariadb-client; \
+    cp /usr/bin/mariadb-dump /usr/local/bin/mariadb-dump; \
+    rm -rf /var/lib/apt/lists/*
+
 RUN test -n "${ACCESS_VERSION}" && test -n "${ACCESS_SHA256}"; \
     curl -fsSL --retry 5 -o /tmp/access.tgz \
         "https://github.com/OksigeniaSL/moodle-local_oksigeniaaccess/archive/refs/tags/v${ACCESS_VERSION}.tar.gz"; \
@@ -111,7 +119,7 @@ RUN apt-get update; \
         > /etc/apt/sources.list.d/pgdg.list; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        ghostscript locales mariadb-client openssl poppler-utils postgresql-client-18 procps tini; \
+        ghostscript locales mariadb-client-core openssl poppler-utils postgresql-client-18 procps tini; \
     for l in ${LOCALES} ${EXTRA_LOCALES}; do echo "${l} UTF-8" >> /etc/locale.gen; done; \
     locale-gen; \
     rm -rf /var/lib/apt/lists/*
@@ -145,6 +153,7 @@ ARG ACCESS_VERSION
 # The entrypoint copies the code into the code volume and keeps it updated.
 COPY --from=sources /usr/src/moodle /usr/src/moodle
 COPY --from=sources /usr/src/oksigenia-access /usr/src/oksigenia-access
+COPY --from=sources /usr/local/bin/mariadb-dump /usr/bin/mariadb-dump
 COPY rootfs/ /
 
 # www-data joins groups root (0) and daemon (1) so it can read and write
@@ -168,6 +177,7 @@ RUN usermod -a -G root,daemon www-data; \
     chmod 0755 /usr/local/bin/docker-entrypoint /usr/local/bin/moodle-cli /usr/local/bin/moodle-healthcheck /usr/local/lib/oksigenia-moodle/run.sh; \
     echo "${MOODLE_VERSION}" > /usr/src/moodle/.oksigenia-image-version; \
     echo "${ACCESS_VERSION}" > /usr/src/oksigenia-access/.oksigenia-image-version; \
+    mariadb-dump --version > /dev/null; \
     apache2ctl -t 2>&1 | grep -q 'Syntax OK'
 
 LABEL org.opencontainers.image.title="Moodle(TM) LMS by Oksigenia" \

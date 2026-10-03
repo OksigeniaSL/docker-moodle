@@ -23,31 +23,40 @@ detect_layout() {
     export OKS_LAYOUT MOODLE_CODE_DIR MOODLE_DATA_DIR
 }
 
-# When started as root, make sure www-data can write both volumes. Volumes
-# from bitnami/moodle are already writable through the root and daemon
-# groups, so they are left untouched; anything else is chowned.
+# When started as root, make sure www-data can write both volumes.
+# The code volume is handed to www-data entirely: its core files are
+# replaced on every upgrade, and the previous tree, with its original
+# ownership, is kept in the backup. The data volume is only chowned when
+# www-data cannot write to it at all; volumes from bitnami/moodle are
+# writable through the root and daemon groups and keep their ownership.
 fix_permissions() {
-    local dir
-    for dir in "${MOODLE_CODE_DIR}" "${MOODLE_DATA_DIR}"; do
-        mkdir -p "${dir}"
-        if ! as_www test -w "${dir}" -a -x "${dir}"; then
-            log "Giving www-data ownership of ${dir} (this can take a while on large volumes)"
-            chown -R www-data:www-data "${dir}"
-        fi
-    done
+    mkdir -p "${MOODLE_CODE_DIR}" "${MOODLE_DATA_DIR}"
+    if [ -n "$(find "${MOODLE_CODE_DIR}" -mindepth 1 ! -user www-data -print -quit)" ]; then
+        log "Giving www-data ownership of the code in ${MOODLE_CODE_DIR}"
+        chown -R www-data:www-data "${MOODLE_CODE_DIR}"
+    fi
+    if ! as_www test -w "${MOODLE_DATA_DIR}" -a -x "${MOODLE_DATA_DIR}"; then
+        log "Giving www-data ownership of ${MOODLE_DATA_DIR} (this can take a while on large volumes)"
+        chown -R www-data:www-data "${MOODLE_DATA_DIR}"
+    fi
 }
 
 check_permissions() {
-    local dir
+    local dir blocked
     for dir in "${MOODLE_CODE_DIR}" "${MOODLE_DATA_DIR}"; do
         [ -d "${dir}" ] || mkdir -p "${dir}" 2>/dev/null \
             || die "${dir} does not exist and cannot be created"
         if [ ! -w "${dir}" ] || [ ! -x "${dir}" ]; then
-            die "$(id -un) cannot write to ${dir}. Either start the container as root once
-        (it fixes ownership and then drops to www-data), or run on the host:
-        sudo chown -R 33:33 <host directory mounted at ${dir}>"
+            blocked="${dir}"
         fi
     done
+    # Every directory of the code must be writable to replace it on upgrades.
+    : "${blocked:=$(find "${MOODLE_CODE_DIR}" -mindepth 1 -type d ! -writable -print -quit)}"
+    if [ -n "${blocked}" ]; then
+        die "$(id -un) cannot write to ${blocked}. Either start the container as root once
+        (it fixes ownership and then drops to www-data), or run on the host:
+        sudo chown -R 33:33 <host directories mounted at ${MOODLE_CODE_DIR} and ${MOODLE_DATA_DIR}>"
+    fi
 }
 
 # Paths that depend on the Moodle layout of the code in the image.
@@ -110,11 +119,11 @@ replace_code() {
         mkdir -p "$(dirname "${next}/${to}")"
         cp -a "${MOODLE_CODE_DIR}/${from}" "${next}/${to}"
     done <<< "${addons}"
-    while read -r removed; do
-        [ -n "${removed}" ] && warn "${removed} was removed from Moodle core and will not be kept." \
-            "If you use it, install it from moodle.org/plugins (the code backup has the old copy)."
-    done < "${OKS_STATE}/removed.txt"
+    removed="$(tr '\n' ' ' < "${OKS_STATE}/removed.txt")"
     rm -f "${OKS_STATE}/removed.txt"
+    if [ -n "${removed// /}" ]; then
+        log "Not carried over, Moodle removed them from core: ${removed}"
+    fi
 
     local keep
     for keep in config.php .user_scripts_initialized; do
@@ -192,7 +201,7 @@ check_removed_modules() {
     for component in ${removed}; do
         case "${component}" in
             mod_*)
-                count="$(php "${OKS_PHP}/db.php" count "${component#mod_}")"
+                count="$(php "${OKS_PHP}/db.php" activities "${component#mod_}")"
                 [ "${count}" -gt 0 ] && blocked+=("${component} (${count} activities)")
                 ;;
         esac

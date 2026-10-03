@@ -16,7 +16,7 @@ When the container starts and finds a `bitnami/moodle` installation in `/bitnami
 4. **Runs Moodle's database upgrade** and configures what newer Moodle versions expect, such as the URL router.
 5. **Starts Apache and cron** as `www-data` on the same ports, 8080 and 8443.
 
-The volumes keep their ownership. Bitnami's files belong to `daemon:root`; the image's user can write them through its groups. That way you can go back to the Bitnami image if you need to (see [Going back](#going-back)).
+`/bitnami/moodledata` keeps its ownership: Bitnami's files belong to `daemon`, and the image's user writes them through its groups. The code in `/bitnami/moodle` is handed to `www-data`, because its core is replaced on every upgrade. The previous tree, with its original ownership, stays in the backup, so you can go back to the Bitnami image if you need to (see [Going back](#going-back)).
 
 ## Which tag to choose
 
@@ -103,14 +103,14 @@ If you used Bitnami's port 8443:
 
 ## Going back
 
-The image does not change the ownership of your volumes, and it keeps everything it replaces in `/bitnami/moodledata/oksigenia/backups/<date>/`:
+The image keeps everything it replaces in `/bitnami/moodledata/oksigenia/backups/<date>/`:
 
 - `database.sql.gz` (or `database.pgdump` on PostgreSQL), the database before the upgrade;
 - `code.tar.gz`, the previous `/bitnami/moodle`.
 
 To return to the Bitnami image:
 1. Restore the database from that dump.
-2. Restore `/bitnami/moodle` from `code.tar.gz`.
+2. Restore `/bitnami/moodle` from `code.tar.gz`, as root so that the original ownership comes back. Empty the volume first, then extract the archive into it: `tar -xzpf code.tar.gz -C /bitnami/moodle`.
 3. Change the `image:` line back.
 
 A database that Moodle has already upgraded cannot be used with older Moodle code, which is why the dump is taken first.

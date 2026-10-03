@@ -1,9 +1,9 @@
 # Daily check for new Moodle point releases and Oksigenia Access releases.
 #
-# The update goes to a branch, the full CI runs there, and only if it passes
-# is it fast-forwarded into main and released. A failure opens an issue.
-# A new Moodle branch also opens an issue, because adding or retiring a
-# branch is a maintainer's decision.
+# Opens a pull request with the update, runs the full CI on it and merges
+# it when CI passes, then starts the release. When CI fails, the pull
+# request stays open with a comment. A new Moodle branch opens an issue,
+# because adding or retiring a branch is a maintainer's decision.
 name: Update versions
 
 on:
@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
   issues: write
   actions: write
 
@@ -33,20 +34,26 @@ jobs:
       - id: check
         run: .github/scripts/update-versions.sh >> "$GITHUB_OUTPUT"
 
-      - name: Test the update and release it
+      - name: Pull request, CI and merge
         if: steps.check.outputs.changed == 'yes'
         env:
           SUMMARY: ${{ steps.check.outputs.summary }}
         run: |
           set -euo pipefail
           branch="update/$(echo "${SUMMARY}" | tr -cs 'A-Za-z0-9.' '-' | sed 's/-$//' | tr 'A-Z' 'a-z')"
+          if [ -n "$(gh pr list --head "${branch}" --state open --json number --jq '.[0].number // empty')" ]; then
+            echo "A pull request for ${SUMMARY} is already open"; exit 0
+          fi
           git config user.name "Oksigenia SL"
           git config user.email "dev@oksigenia.com"
           git switch -c "${branch}"
           git commit -am "Update to ${SUMMARY}"
           git push --force origin "${branch}"
+          pr="$(gh pr create --base main --head "${branch}" --title "Update to ${SUMMARY}" \
+            --body "Automatic update of \`versions.json\`. The SHA-256 published by Moodle was checked against the downloaded package. It is merged automatically when the full CI passes." \
+            | sed 's#.*/##')"
 
-          # Pushes made with GITHUB_TOKEN start no workflows; dispatch CI and wait for it.
+          # Pull requests opened with GITHUB_TOKEN start no workflows: dispatch CI and wait for it.
           before="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           gh workflow run ci.yml --ref "${branch}"
           run=""
@@ -57,16 +64,14 @@ jobs:
             sleep 10
           done
           [ -n "${run}" ] || { echo "CI run not found"; exit 1; }
+          url="$(gh run view "${run}" --json url --jq .url)"
 
           if gh run watch "${run}" --exit-status --interval 60 > /dev/null; then
-            git push origin "HEAD:main"
-            git push origin --delete "${branch}"
+            gh pr merge "${pr}" --squash --delete-branch
             gh workflow run release.yml --ref main
-            echo "Released ${SUMMARY}" >> "$GITHUB_STEP_SUMMARY"
+            echo "Merged and released ${SUMMARY}" >> "$GITHUB_STEP_SUMMARY"
           else
-            url="$(gh run view "${run}" --json url --jq .url)"
-            gh issue create --title "Update to ${SUMMARY} failed CI" \
-              --body "The automatic update to ${SUMMARY} did not pass CI: ${url}. Branch \`${branch}\` keeps the change."
+            gh pr comment "${pr}" --body "CI failed, so this update was not merged: ${url}"
             exit 1
           fi
 
