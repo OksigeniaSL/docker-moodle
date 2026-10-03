@@ -134,6 +134,7 @@ $CFG->disablenotificationctas = ['marketplace', 'moodlecloud', 'partners', 'feed
 - **User:** Apache and cron run as `www-data` (uid 33).
   - The container starts as root only to fix the ownership of the volumes, then drops to `www-data`.
   - It also runs fully unprivileged with `user: www-data`. In that case the volumes must already belong to uid 33.
+  - If you fix ownership on the host instead, recreate the container afterwards (`docker compose up -d --force-recreate`): a plain `up -d` leaves the failed container retrying.
 
 ## Upgrades
 

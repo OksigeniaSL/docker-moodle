@@ -54,9 +54,11 @@ check_permissions() {
     # Every directory of the code must be writable to replace it on upgrades.
     : "${blocked:=$(find "${MOODLE_CODE_DIR}" -mindepth 1 -type d ! -writable -print -quit)}"
     if [ -n "${blocked}" ]; then
-        die "$(id -un) cannot write to ${blocked}. Either start the container as root once
-        (it fixes ownership and then drops to www-data), or run on the host:
-        sudo chown -R 33:33 <host directories mounted at ${MOODLE_CODE_DIR} and ${MOODLE_DATA_DIR}>"
+        die "$(id -un) cannot write to ${blocked}. Either start the container as root (the
+        default: remove any user: setting), so it fixes ownership and then drops to
+        www-data, or run on the host:
+        sudo chown -R 33:33 <host directories mounted at ${MOODLE_CODE_DIR} and ${MOODLE_DATA_DIR}>
+        Then recreate the container: docker compose up -d --force-recreate"
     fi
 }
 

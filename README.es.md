@@ -136,6 +136,7 @@ $CFG->disablenotificationctas = ['marketplace', 'moodlecloud', 'partners', 'feed
 - **Usuario:** Apache y el cron corren como `www-data` (uid 33).
   - El contenedor arranca como root solo para ajustar el dueño de los volúmenes y después pasa a `www-data`.
   - También funciona sin ningún privilegio con `user: www-data`. En ese caso los volúmenes tienen que ser ya del uid 33.
+  - Si arreglas los dueños en el host, recrea después el contenedor (`docker compose up -d --force-recreate`): un `up -d` normal deja el contenedor fallido reintentando.
 
 ## Actualizaciones
 
