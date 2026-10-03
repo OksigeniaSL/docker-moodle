@@ -182,9 +182,37 @@ sync_code() {
     esac
 }
 
+# Activity modules that Moodle removed from core (Chat and Survey in 5.0,
+# for example) are uninstalled by Moodle's upgrade, with their activities.
+# Refuse to do that silently when the site has such activities.
+check_removed_modules() {
+    [ "${OKS_DB_STATE}" = installed ] || return 0
+    local removed component count blocked=()
+    removed="$(php "${OKS_PHP}/addons.php" "${MOODLE_CODE_DIR}" "${IMAGE_CODE}" 2>&1 >/dev/null)" || return 0
+    for component in ${removed}; do
+        case "${component}" in
+            mod_*)
+                count="$(php "${OKS_PHP}/db.php" count "${component#mod_}")"
+                [ "${count}" -gt 0 ] && blocked+=("${component} (${count} activities)")
+                ;;
+        esac
+    done
+    [ "${#blocked[@]}" -gt 0 ] || return 0
+    if is_on "${MOODLE_ALLOW_REMOVED_PLUGINS:-no}"; then
+        warn "Moodle will uninstall these modules and delete their activities: ${blocked[*]}"
+        return 0
+    fi
+    die "this upgrade removes modules that Moodle no longer ships, and this site uses them:
+        ${blocked[*]}
+        Moodle's upgrade would delete those activities. Either keep the current image tag,
+        or set MOODLE_ALLOW_REMOVED_PLUGINS=yes to go ahead (a database backup is taken first).
+        Versions of these modules for newer Moodle may exist at https://moodle.org/plugins"
+}
+
 # Runs after the database is reachable, so the backup can include it.
 apply_code_update() {
     [ "${OKS_CODE_CHANGED:-no}" = yes ] || return 0
+    check_removed_modules
     backup_dir_new
     backup_code
     if is_on "${MOODLE_BACKUP_BEFORE_UPGRADE}" && [ "${OKS_DB_STATE}" = installed ]; then

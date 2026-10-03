@@ -1,7 +1,9 @@
 # Daily check for new Moodle point releases and Oksigenia Access releases.
-# Opens a pull request that updates versions.json and runs CI on it; merging
-# it triggers the release. A new Moodle branch opens an issue instead,
-# because adding or retiring a branch is a decision for a maintainer.
+#
+# The update goes to a branch, the full CI runs there, and only if it passes
+# is it fast-forwarded into main and released. A failure opens an issue.
+# A new Moodle branch also opens an issue, because adding or retiring a
+# branch is a maintainer's decision.
 name: Update versions
 
 on:
@@ -11,47 +13,69 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
   issues: write
   actions: write
+
+concurrency:
+  group: update-versions
+  cancel-in-progress: false
 
 jobs:
   update:
     runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - id: check
         run: .github/scripts/update-versions.sh >> "$GITHUB_OUTPUT"
 
-      - name: Pull request
+      - name: Test the update and release it
         if: steps.check.outputs.changed == 'yes'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SUMMARY: ${{ steps.check.outputs.summary }}
         run: |
           set -euo pipefail
           branch="update/$(echo "${SUMMARY}" | tr -cs 'A-Za-z0-9.' '-' | sed 's/-$//' | tr 'A-Z' 'a-z')"
-          if git ls-remote --exit-code --heads origin "${branch}" > /dev/null; then
-            echo "Branch ${branch} already exists"; exit 0
-          fi
           git config user.name "Oksigenia SL"
           git config user.email "dev@oksigenia.com"
           git switch -c "${branch}"
           git commit -am "Update to ${SUMMARY}"
-          git push origin "${branch}"
-          gh pr create --base main --head "${branch}" --title "Update to ${SUMMARY}" \
-            --body "Automatic update of \`versions.json\`. The SHA-256 published by Moodle was checked against the downloaded package. CI runs the full test suite on this branch; merging publishes new images."
-          # Pull requests opened with GITHUB_TOKEN do not trigger workflows; dispatch CI.
+          git push --force origin "${branch}"
+
+          # Pushes made with GITHUB_TOKEN start no workflows; dispatch CI and wait for it.
+          before="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           gh workflow run ci.yml --ref "${branch}"
+          run=""
+          for _ in $(seq 1 30); do
+            run="$(gh run list --workflow ci.yml --branch "${branch}" --event workflow_dispatch \
+              --created ">=${before}" --json databaseId --jq '.[0].databaseId // empty')"
+            [ -n "${run}" ] && break
+            sleep 10
+          done
+          [ -n "${run}" ] || { echo "CI run not found"; exit 1; }
+
+          if gh run watch "${run}" --exit-status --interval 60 > /dev/null; then
+            git push origin "HEAD:main"
+            git push origin --delete "${branch}"
+            gh workflow run release.yml --ref main
+            echo "Released ${SUMMARY}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            url="$(gh run view "${run}" --json url --jq .url)"
+            gh issue create --title "Update to ${SUMMARY} failed CI" \
+              --body "The automatic update to ${SUMMARY} did not pass CI: ${url}. Branch \`${branch}\` keeps the change."
+            exit 1
+          fi
 
       - name: Issue for a new Moodle branch
         if: steps.check.outputs.newbranch != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NEWBRANCH: ${{ steps.check.outputs.newbranch }}
         run: |
           title="Moodle ${NEWBRANCH} is out: add it to versions.json"
-          if gh issue list --state all --search "in:title \"${title}\"" --json number --jq 'length' | grep -qv '^0$'; then
-            exit 0
-          fi
+          count="$(gh issue list --state all --search "in:title \"${title}\"" --json number --jq 'length')"
+          [ "${count}" = 0 ] || exit 0
           gh issue create --title "${title}" --body "Moodle ${NEWBRANCH}.0 has been released. Add the branch to \`versions.json\` (PHP version, SHA-256), decide whether it becomes \`latest\`/\`lts\`, and retire the branch that leaves security support."

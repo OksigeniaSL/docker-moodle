@@ -15,6 +15,8 @@ FROM php:${PHP_VERSION}-apache-trixie AS sources
 
 ARG MOODLE_VERSION
 ARG MOODLE_SHA256
+# Only for testing a release before Moodle publishes its package.
+ARG MOODLE_TGZ_URL=""
 ARG ACCESS_VERSION
 ARG ACCESS_SHA256
 
@@ -24,12 +26,25 @@ RUN test -n "${MOODLE_VERSION}" && test -n "${MOODLE_SHA256}"; \
     # Official packages live under stableXYZ, e.g. 5.2.3 -> stable502.
     major="${MOODLE_VERSION%%.*}"; rest="${MOODLE_VERSION#*.}"; minor="${rest%%.*}"; \
     stable="stable${major}$(printf '%02d' "${minor}")"; \
-    curl -fsSL --retry 5 -o /tmp/moodle.tgz \
-        "https://download.moodle.org/download.php/direct/${stable}/moodle-${MOODLE_VERSION}.tgz"; \
+    url="${MOODLE_TGZ_URL:-https://download.moodle.org/download.php/direct/${stable}/moodle-${MOODLE_VERSION}.tgz}"; \
+    curl -fsSL --retry 5 -o /tmp/moodle.tgz "${url}"; \
     echo "${MOODLE_SHA256}  /tmp/moodle.tgz" | sha256sum -c -; \
     mkdir -p /usr/src/moodle; \
     tar -xzf /tmp/moodle.tgz -C /usr/src/moodle --strip-components=1 --no-same-owner; \
     rm /tmp/moodle.tgz
+
+# From Moodle 5.1, part of Moodle's libraries come through Composer and the
+# official package does not include them (Moodle's environment check warns).
+# Install them from Moodle's own composer.lock, the way Moodle documents it.
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+WORKDIR /usr/src/moodle
+RUN if php -r '$c = json_decode(file_get_contents("composer.json"), true); \
+        foreach (array_keys($c["require"] ?? []) as $p) { if (!preg_match("/^(php|ext-|lib-)/", $p)) exit(0); } exit(1);'; then \
+        apt-get update; apt-get install -y --no-install-recommends unzip; \
+        COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --classmap-authoritative --no-interaction \
+            --no-progress --ignore-platform-req='ext-*'; \
+        rm -rf /root/.composer /root/.cache /var/lib/apt/lists/*; \
+    fi
 
 RUN test -n "${ACCESS_VERSION}" && test -n "${ACCESS_SHA256}"; \
     curl -fsSL --retry 5 -o /tmp/access.tgz \
@@ -44,8 +59,6 @@ RUN test -n "${ACCESS_VERSION}" && test -n "${ACCESS_SHA256}"; \
 # ---------------------------------------------------------------------------
 FROM php:${PHP_VERSION}-apache-trixie
 
-ARG MOODLE_VERSION
-ARG ACCESS_VERSION
 # Locales generated at build time, so that language packs can use them.
 # Add more with --build-arg EXTRA_LOCALES="sv_SE.UTF-8 da_DK.UTF-8".
 ARG LOCALES="en_US.UTF-8 en_AU.UTF-8 en_GB.UTF-8 es_ES.UTF-8 es_MX.UTF-8 ca_ES.UTF-8 gl_ES.UTF-8 eu_ES.UTF-8 pt_PT.UTF-8 pt_BR.UTF-8 fr_FR.UTF-8 de_DE.UTF-8 it_IT.UTF-8 nl_NL.UTF-8 pl_PL.UTF-8 ro_RO.UTF-8 cs_CZ.UTF-8 ru_RU.UTF-8 uk_UA.UTF-8 tr_TR.UTF-8 el_GR.UTF-8 ar_SA.UTF-8 he_IL.UTF-8 ja_JP.UTF-8 ko_KR.UTF-8 zh_CN.UTF-8 zh_TW.UTF-8"
@@ -56,6 +69,7 @@ SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 # PHP extensions required or recommended by Moodle. Build dependencies,
 # including the compilers shipped by the base image, are purged afterwards
 # so that the runtime image carries no toolchain.
+# hadolint ignore=SC2086
 RUN savedAptMark="$(apt-mark showmanual)"; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
@@ -121,6 +135,11 @@ ENV PHP_MEMORY_LIMIT=256M \
     MOODLE_CODE_DIR=/var/www/moodle \
     LANG=C.UTF-8
 
+# Declared here, not at the top of the stage, so that a new Moodle version
+# does not invalidate the cached PHP layers above.
+ARG MOODLE_VERSION
+ARG ACCESS_VERSION
+
 # The official Moodle code, untouched, plus the optional Access plugin.
 # The entrypoint copies the code into the code volume and keeps it updated.
 COPY --from=sources /usr/src/moodle /usr/src/moodle
@@ -134,7 +153,7 @@ RUN usermod -a -G root,daemon www-data; \
     a2dismod -f mpm_event mpm_worker > /dev/null 2>&1 || true; \
     a2enmod -q mpm_prefork headers rewrite ssl; \
     a2disconf -q other-vhosts-access-log serve-cgi-bin || true; \
-    a2enconf -q moodle; \
+    a2enconf -q zz-moodle; \
     a2dissite -q 000-default; \
     a2ensite -q moodle; \
     mkdir -p /var/www/moodle /var/www/moodledata /etc/moodle/config.d; \

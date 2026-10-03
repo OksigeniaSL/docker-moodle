@@ -122,6 +122,7 @@ resolve_env() {
             warn "MOODLE_URL is not set; using ${MOODLE_URL}. Set it to the address your users open."
         fi
     fi
+    MOODLE_URL="${MOODLE_URL:-}"
     MOODLE_URL="${MOODLE_URL%/}"
     case "${MOODLE_URL}" in
         ''|http://*|https://*) ;;

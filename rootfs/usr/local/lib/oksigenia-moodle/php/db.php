@@ -1,9 +1,10 @@
 <?php
 // Database checks that run before Moodle can boot.
 //
-// Usage: php db.php wait|state
+// Usage: php db.php wait|state|count <table>
 //   wait   retry until the database accepts connections (OKS_DB_WAIT seconds)
 //   state  print "installed", "empty" or "partial"
+//   count  rows in a Moodle table (name without prefix), -1 if missing
 //
 // Connection settings come from the OKS_DB_* environment variables.
 
@@ -101,5 +102,14 @@ if ($action === 'state') {
     exit(0);
 }
 
-fwrite(STDERR, "usage: db.php wait|state\n");
+// Number of rows in a Moodle table (without prefix), or -1 if it does not exist.
+if ($action === 'count') {
+    $conn = connect($type);
+    $table = $prefix . preg_replace('/[^a-z0-9_]/', '', $argv[2] ?? '');
+    $n = query_one($conn, $type, "SELECT COUNT(*) FROM $table");
+    echo ($n === null ? -1 : (int) $n), "\n";
+    exit(0);
+}
+
+fwrite(STDERR, "usage: db.php wait|state|count <table>\n");
 exit(2);

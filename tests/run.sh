@@ -14,7 +14,8 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCENARIO="${1:?scenario}"
-export IMAGE="${IMAGE:-}" MOODLE_IMAGE="${IMAGE:-}"
+export IMAGE="${IMAGE:-}"
+export MOODLE_IMAGE="${IMAGE}"
 PROJECT="moodletest-${SCENARIO}-$$"
 WAIT_INSTALL="${WAIT_INSTALL:-1200}"
 
@@ -81,6 +82,7 @@ moodle_eval() {
         php -r "define('CLI_SCRIPT', true); require 'config.php'; $1"
 }
 
+# shellcheck disable=SC2016  # PHP code, expanded by PHP
 moodle_release() { moodle_eval 'echo $CFG->release;'; }
 
 plugin_version() { moodle_eval "echo get_config('$1', 'version');"; }
@@ -106,7 +108,10 @@ expect_nonroot() {
 basic_checks() {
     wait_healthy
     expect_status /login/index.php 200
-    expect_status / 200
+    # New sites have forcelogin on, so the front page may send guests to the login page.
+    local front
+    front="$(http_status /)"
+    case "${front}" in 200|303) echo "GET / -> ${front}" ;; *) fail "GET / returned ${front}" ;; esac
     [ "$(http_body /_oksigenia/health)" = OK ] || fail "health endpoint is not OK"
     expect_nonroot
     expect_cron
@@ -136,16 +141,21 @@ case "${SCENARIO}" in
         log "Oksigenia Access off by default (${IMAGE:?})"
         compose up -d
         wait_healthy
-        http_body / | grep -q '<oksigenia-access-panel' && fail "Access is active although OKSIGENIA_ACCESS is off"
+        # A page guests can open (the site home is off by default from 5.2)
+        # and that renders the footer, where the panel goes.
+        cli cfg --name=forcelogin --set=0 >/dev/null
+        page=/course/index.php
+        expect_status "${page}" 200
+        http_body "${page}" | grep -q '<oksigenia-access-panel' && fail "Access is active although OKSIGENIA_ACCESS is off"
         log "OKSIGENIA_ACCESS=on installs and enables it"
         OKSIGENIA_ACCESS=on compose up -d moodle
         wait_healthy
         [ -n "$(plugin_version local_oksigeniaaccess)" ] || fail "Access is not installed"
-        http_body / | grep -q '<oksigenia-access-panel' || fail "Access panel not on the front page"
+        http_body "${page}" | grep -q '<oksigenia-access-panel' || fail "Access panel not rendered"
         log "OKSIGENIA_ACCESS=off again disables it without uninstalling"
         OKSIGENIA_ACCESS=off compose up -d moodle
         wait_healthy
-        http_body / | grep -q '<oksigenia-access-panel' && fail "Access still active after OKSIGENIA_ACCESS=off"
+        http_body "${page}" | grep -q '<oksigenia-access-panel' && fail "Access still active after OKSIGENIA_ACCESS=off"
         echo "Access: off by default, on and off by variable"
         ;;
 
@@ -179,7 +189,8 @@ case "${SCENARIO}" in
             sleep 10
         done
         sleep 15
-        old="$(compose exec -T moodle sh -c 'grep -h "^\$release" /bitnami/moodle/version.php /bitnami/moodle/public/version.php 2>/dev/null' | head -1)"
+        # shellcheck disable=SC2016
+        old="$(compose exec -T moodle sh -c 'cat /bitnami/moodle/public/version.php /bitnami/moodle/version.php 2>/dev/null | grep -m1 "^\$release"' || true)"
         echo "Bitnami site: ${old}"
         add_test_plugin /bitnami/moodle daemon:root
         compose exec -T -u daemon moodle \

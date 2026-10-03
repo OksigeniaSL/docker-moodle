@@ -211,7 +211,7 @@ The same images are published on Docker Hub as `oksigenia/moodle` and on GitHub 
 
 ## Maintained by Oksigenia
 
-[Oksigenia](https://oksigenia.com) has run Moodle since version 1.7 and maintains this image. Prefer not to maintain it yourself? Oksigenia can host and maintain your Moodle site for you.
+The team at [Oksigenia](https://oksigenia.com) has worked with Moodle since version 1.7 and maintains this image. Prefer not to maintain it yourself? Oksigenia can host and maintain your Moodle site for you.
 
 ## License
 

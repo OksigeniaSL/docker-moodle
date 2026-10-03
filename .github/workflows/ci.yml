@@ -28,7 +28,7 @@ jobs:
             rootfs/usr/local/bin/moodle-healthcheck rootfs/usr/local/lib/oksigenia-moodle/run.sh \
             tests/run.sh .github/scripts/*.sh
       - name: Hadolint
-        run: docker run --rm -i hadolint/hadolint:latest hadolint --ignore DL3008 --ignore DL4006 - < Dockerfile
+        run: docker run --rm -v "$PWD:/mnt:ro" -w /mnt hadolint/hadolint:latest hadolint --config .hadolint.yaml Dockerfile
       - name: PHP syntax
         run: |
           docker run --rm -v "$PWD:/mnt:ro" -w /mnt php:8.4-cli \

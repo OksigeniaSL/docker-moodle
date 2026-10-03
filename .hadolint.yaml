@@ -1,0 +1,4 @@
+ignored:
+  - DL3008   # apt versions are not pinned: weekly rebuilds pick up Debian security fixes
+  - DL4006   # SHELL already sets -o pipefail
+  - DL3064   # MOODLE_TLS_KEY holds a file path, not a secret

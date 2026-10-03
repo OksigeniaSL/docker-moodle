@@ -28,7 +28,7 @@ for branch in $(jq -r '.branches | keys[]' "${v}"); do
     major="${branch%%.*}"; minor="${branch#*.}"
     url="https://download.moodle.org/download.php/direct/stable${major}$(printf '%02d' "${minor}")/moodle-${latest}.tgz"
     published="$(curl -fsSL "${url}.sha256" 2>/dev/null | awk '{print $NF}' || true)"
-    if [ -z "${published}" ]; then
+    if ! [[ "${published}" =~ ^[0-9a-f]{64}$ ]]; then
         echo "Moodle ${latest} is tagged but not packaged yet; trying again later" >&2
         continue
     fi
