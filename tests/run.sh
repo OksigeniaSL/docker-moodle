@@ -96,13 +96,19 @@ moodle_release() { moodle_eval 'echo $CFG->release;'; }
 
 plugin_version() { moodle_eval "echo get_config('$1', 'version');"; }
 
-# The cron loop ran: Moodle records the start of each run.
+# The cron loop ran, and often enough: Moodle records the start of each run
+# and the time between the last two, and warns when that exceeds two minutes.
 expect_cron() {
-    local deadline=$(( $(date +%s) + 240 )) last
+    local deadline=$(( $(date +%s) + 300 )) last interval
     while :; do
         last="$(moodle_eval "echo (int) get_config('tool_task', 'lastcronstart');" || echo 0)"
-        [ "${last}" -gt 0 ] && { echo "cron ran at ${last}"; return 0; }
-        [ "$(date +%s)" -lt "${deadline}" ] || fail "cron has not run"
+        interval="$(moodle_eval "echo (int) get_config('tool_task', 'lastcroninterval');" || echo 0)"
+        if [ "${last}" -gt 0 ] && [ "${interval}" -gt 0 ]; then
+            [ "${interval}" -le 120 ] || fail "cron runs every ${interval}s; Moodle warns above 120s"
+            echo "cron ran at ${last}, every ${interval}s"
+            return 0
+        fi
+        [ "$(date +%s)" -lt "${deadline}" ] || fail "cron has not run twice"
         sleep 10
     done
 }

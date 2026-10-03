@@ -91,6 +91,7 @@ These are applied once, when the site is created, and never again. Change them l
 | `MOODLE_REDIS_HOST` / `_PORT` / `_PASSWORD` | | Sessions and the application cache in Redis or Valkey. |
 | `MOODLE_CRON` | `on` | `off` if cron runs in another container. |
 | `MOODLE_CRON_INTERVAL` | `60` | Seconds between cron runs. |
+| `MOODLE_CRON_KEEPALIVE` | interval − 10 | Seconds each run stays alive picking up ad hoc tasks (Moodle's `--keep-alive`). Runs never overlap. |
 | `MOODLE_CRON_LOG` | `errors` | `errors` prints cron output only when it fails; `full` prints every run. The last run is always in `moodledata/oksigenia/cron-last.log`. |
 | `MOODLE_AUTO_UPGRADE` | `on` | `off` refuses to start when an upgrade is needed, so you can run it yourself. |
 | `MOODLE_BACKUP_BEFORE_UPGRADE` | `on` | Database dump (and code archive) before every upgrade. |

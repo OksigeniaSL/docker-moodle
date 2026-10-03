@@ -11,13 +11,18 @@ set -uo pipefail
 ROLE="$1"
 CRON_LOG="${MOODLE_DATA_DIR}/oksigenia/cron-last.log"
 
+# Moodle expects cron to start every minute (it warns when two starts are
+# more than two minutes apart), and by default keeps each run alive for
+# three minutes to pick up ad hoc tasks as they arrive. Runs here never
+# overlap, so each one stays alive for most of the interval instead.
 cron_loop() {
     local interval="${MOODLE_CRON_INTERVAL}" start elapsed rc
+    local keepalive="${MOODLE_CRON_KEEPALIVE:-$(( interval > 15 ? interval - 10 : 0 ))}"
     sleep 5
     while :; do
         start=$(date +%s)
         rc=0
-        ( cd "${MOODLE_CODE_DIR}" && php admin/cli/cron.php ) > "${CRON_LOG}.tmp" 2>&1 || rc=$?
+        ( cd "${MOODLE_CODE_DIR}" && php admin/cli/cron.php --keep-alive="${keepalive}" ) > "${CRON_LOG}.tmp" 2>&1 || rc=$?
         mv -f "${CRON_LOG}.tmp" "${CRON_LOG}"
         if [ "${rc}" != 0 ]; then
             warn "cron exited with code ${rc}; last lines:"

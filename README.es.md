@@ -93,6 +93,7 @@ Se aplican una vez, al crear el sitio, y nunca más. Después se cambian en la a
 | `MOODLE_REDIS_HOST` / `_PORT` / `_PASSWORD` | | Sesiones y caché de aplicación en Redis o Valkey. |
 | `MOODLE_CRON` | `on` | `off` si el cron va en otro contenedor. |
 | `MOODLE_CRON_INTERVAL` | `60` | Segundos entre ejecuciones del cron. |
+| `MOODLE_CRON_KEEPALIVE` | intervalo − 10 | Segundos que cada ejecución sigue viva recogiendo tareas ad hoc (el `--keep-alive` de Moodle). Las ejecuciones nunca se solapan. |
 | `MOODLE_CRON_LOG` | `errors` | Con `errors`, la salida del cron solo aparece cuando falla; con `full`, aparece la de todas las ejecuciones. La última ejecución siempre está en `moodledata/oksigenia/cron-last.log`. |
 | `MOODLE_AUTO_UPGRADE` | `on` | Con `off`, no arranca si hace falta actualizar, para que lo hagas tú. |
 | `MOODLE_BACKUP_BEFORE_UPGRADE` | `on` | Volcado de la base de datos (y archivo del código) antes de cada actualización. |
