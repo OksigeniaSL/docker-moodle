@@ -6,6 +6,7 @@
 #   tests/run.sh access            IMAGE=...
 #   tests/run.sh upgrade           IMAGE_OLD=... IMAGE=...
 #   tests/run.sh bitnami           IMAGE=... BITNAMI_IMAGE=bitnamilegacy/moodle:5.0.2
+#   tests/run.sh bitnami-fresh     IMAGE=...
 #
 # Each scenario runs in its own Compose project and removes it, volumes
 # included, when it finishes. KEEP=1 leaves it running for debugging.
@@ -143,6 +144,15 @@ case "${SCENARIO}" in
         compose restart moodle
         wait_healthy
         expect_status /login/index.php 200
+        ;;
+
+    bitnami-fresh)
+        # A new site from a Compose file written for bitnami/moodle: Bitnami's
+        # variables and /bitnami volumes, no MOODLE_URL, our image from the start.
+        COMPOSE_FILE="${HERE}/compose/bitnami.yaml"
+        log "New install with Bitnami variables and volumes (${IMAGE:?})"
+        compose up -d
+        basic_checks
         ;;
 
     access)

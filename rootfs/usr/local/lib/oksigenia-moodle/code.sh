@@ -31,7 +31,8 @@ detect_layout() {
 # writable through the root and daemon groups and keep their ownership.
 fix_permissions() {
     mkdir -p "${MOODLE_CODE_DIR}" "${MOODLE_DATA_DIR}"
-    if [ -n "$(find "${MOODLE_CODE_DIR}" -mindepth 1 ! -user www-data -print -quit)" ]; then
+    if ! as_www test -w "${MOODLE_CODE_DIR}" -a -x "${MOODLE_CODE_DIR}" \
+        || [ -n "$(find "${MOODLE_CODE_DIR}" -mindepth 1 ! -user www-data -print -quit)" ]; then
         log "Giving www-data ownership of the code in ${MOODLE_CODE_DIR}"
         chown -R www-data:www-data "${MOODLE_CODE_DIR}"
     fi
@@ -180,7 +181,10 @@ sync_code() {
             ;;
         downgrade)
             die "the code volume has a newer Moodle than this image (${details}).
-        Use an image with the same or a newer version; downgrades are not possible."
+        Use an image with the same or a newer version; downgrades are not possible.
+        If that code never ran against this database (for example a development tree
+        copied in by hand), move it out of ${MOODLE_CODE_DIR} and start again: the image
+        then installs its own code and upgrades the database from its current version."
             ;;
         unsupported)
             die "cannot upgrade directly: ${details}"
