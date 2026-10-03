@@ -140,10 +140,14 @@ case "${SCENARIO}" in
         log "Clean install (${SCENARIO#install-}) with ${IMAGE:?}"
         compose up -d
         basic_checks
-        log "Restart keeps the site"
+        log "Restart keeps the site and hands root-owned caches back to www-data"
+        compose exec -T -u 0 moodle sh -c 'mkdir -p /var/www/moodledata/cache/oksitest && touch /var/www/moodledata/cache/oksitest/by-root'
         compose restart moodle
         wait_healthy
         expect_status /login/index.php 200
+        owner="$(compose exec -T moodle stat -c %U /var/www/moodledata/cache/oksitest/by-root)"
+        [ "${owner}" = www-data ] || fail "root-owned cache file still belongs to ${owner}"
+        echo "root-owned cache file now belongs to www-data"
         ;;
 
     bitnami-fresh)

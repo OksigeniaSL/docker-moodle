@@ -161,7 +161,7 @@ El cron corre dentro del contenedor cada minuto, como `www-data`. Para ejecutarl
 
 ## Los scripts de línea de comandos de Moodle
 
-`moodle-cli` ejecuta cualquier script de `admin/cli` con el usuario y desde el directorio correctos:
+`moodle-cli` ejecuta cualquier script de `admin/cli` como `www-data` y desde el directorio correcto. Desde Moodle 5.1, `admin/cli` sigue en la raíz del código, no bajo `public/`. Evita `docker exec … php admin/cli/…` sin `-u www-data`: como root, Moodle deja cachés con dueño root que Apache no puede sustituir (al reiniciar el contenedor vuelven a ser de `www-data`).
 
 ```sh
 docker compose exec moodle moodle-cli maintenance --enable

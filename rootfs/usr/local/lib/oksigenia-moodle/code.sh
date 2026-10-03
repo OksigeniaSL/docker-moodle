@@ -40,6 +40,15 @@ fix_permissions() {
         log "Giving www-data ownership of ${MOODLE_DATA_DIR} (this can take a while on large volumes)"
         chown -R www-data:www-data "${MOODLE_DATA_DIR}"
     fi
+    # Moodle CLI scripts run as root (docker exec without -u) leave root-owned
+    # caches behind that Apache cannot replace. Hand those back.
+    local dir fixed
+    for dir in cache localcache temp sessions muc lang; do
+        [ -d "${MOODLE_DATA_DIR}/${dir}" ] || continue
+        fixed="$( (find "${MOODLE_DATA_DIR}/${dir}" -user 0 -print -exec chown www-data:www-data {} + || true) | wc -l)"
+        [ "${fixed}" -gt 0 ] && log "Gave www-data ${fixed} root-owned files in ${MOODLE_DATA_DIR}/${dir}"
+    done
+    return 0
 }
 
 check_permissions() {
