@@ -1,0 +1,15 @@
+# Vulnerabilities that do not block a release, each with the reason and an
+# expiry date after which it blocks again and must be reviewed.
+
+vulnerabilities:
+  - id: CVE-2026-54133
+    paths:
+      - usr/src/moodle/vendor/composer/installed.json
+    statement: >-
+      mtdowling/jmespath.php 2.8.0 comes from Moodle's own composer.lock
+      (5.2.3, 5.2.4 and 5.3.0 alike; Moodle also ships the same library in
+      public/lib/jmespath). The flaw is in CompilerRuntime, which jmespath only
+      uses when the JP_PHP_COMPILE environment variable is set. Moodle never
+      sets it and neither does this image, so the default AstRuntime is used.
+      Remove this entry once Moodle updates the library.
+    expired_at: 2027-01-05
