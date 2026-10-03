@@ -153,7 +153,7 @@ resolve_env() {
         APACHE_SERVER_NAME MOODLE_URL PHP_DATE_TIMEZONE
 
     if [ "${#BITNAMI_VARS_USED[@]}" -gt 0 ]; then
-        warn "bitnami/moodle variables detected. They work, but consider renaming them:"
-        for v in "${BITNAMI_VARS_USED[@]}"; do warn "  ${v}"; done
+        local IFS=,
+        log "Using bitnami/moodle variable names (they keep working; the native names are:${BITNAMI_VARS_USED[*]/#/ })"
     fi
 }
