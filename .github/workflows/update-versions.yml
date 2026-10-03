@@ -1,4 +1,4 @@
-# Daily check for new Moodle point releases and Oksigenia Access releases.
+# Regular check for new Moodle point releases and Oksigenia Access releases.
 #
 # Opens a pull request with the update, runs the full CI on it and merges
 # it when CI passes, then starts the release. When CI fails, the pull
@@ -8,7 +8,8 @@ name: Update versions
 
 on:
   schedule:
-    - cron: '23 6 * * *'
+    # Every 6 hours, so a Moodle release is picked up the day it ships.
+    - cron: '23 */6 * * *'
   workflow_dispatch:
 
 permissions:

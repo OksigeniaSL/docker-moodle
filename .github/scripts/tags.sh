@@ -32,7 +32,7 @@ done <<< "${existing}"
 immutable="${moodle}-r$((last + 1))"
 
 tags=("${immutable}" "${moodle}" "${branch}")
-newest_of_major="$(jq -r --arg m "${major}" '[.branches | keys[] | select(startswith($m + "."))] | sort_by(split(".") | map(tonumber)) | last' "${v}")"
+newest_of_major="$(jq -r --arg m "${major}" '[.branches | to_entries[] | select(.value.pending != true) | .key | select(startswith($m + "."))] | sort_by(split(".") | map(tonumber)) | last' "${v}")"
 [ "${branch}" = "${newest_of_major}" ] && tags+=("${major}")
 [ "${branch}" = "$(jq -r '.latest' "${v}")" ] && tags+=(latest)
 # "lts" is set explicitly in versions.json, so it never jumps to another

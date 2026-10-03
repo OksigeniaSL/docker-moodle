@@ -15,6 +15,14 @@
       "sha256": "918c4bed6639056d1a3fcca37747ad95c4ec988024d2ef6b662897bcee55a581",
       "php": "8.4",
       "lts": false
+    },
+    "5.3": {
+      "moodle": "5.3.0",
+      "sha256": "",
+      "php": "8.4",
+      "lts": true,
+      "pending": true,
+      "promote_latest": true
     }
   },
   "latest": "5.2",

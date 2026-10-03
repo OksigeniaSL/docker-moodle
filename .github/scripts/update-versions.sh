@@ -19,7 +19,31 @@ sha256_of() { curl -fsSL --retry 3 "$1" | sha256sum | cut -d' ' -f1; }
 moodle_tags="$(git ls-remote --tags --refs https://github.com/moodle/moodle.git 'v*' \
     | sed -n 's#.*refs/tags/v\([0-9]*\.[0-9]*\.[0-9]*\)$#\1#p' | sort -V)"
 
-for branch in $(jq -r '.branches | keys[]' "${v}"); do
+# A branch marked "pending" is published as soon as Moodle publishes its
+# package (Moodle tags a release in git a few days before it ships it).
+for branch in $(jq -r '.branches | to_entries[] | select(.value.pending == true) | .key' "${v}"); do
+    version="$(jq -r --arg b "${branch}" '.branches[$b].moodle' "${v}")"
+    major="${branch%%.*}"; minor="${branch#*.}"
+    url="https://download.moodle.org/download.php/direct/stable${major}$(printf '%02d' "${minor}")/moodle-${version}.tgz"
+    published="$(curl -fsSL "${url}.sha256" 2>/dev/null | awk '{print $NF}' || true)"
+    if ! [[ "${published}" =~ ^[0-9a-f]{64}$ ]]; then
+        echo "Moodle ${version} is not packaged yet; trying again later" >&2
+        continue
+    fi
+    actual="$(sha256_of "${url}")"
+    if [ "${published}" != "${actual}" ]; then
+        echo "Moodle ${version}: published SHA-256 ${published} does not match the download ${actual}" >&2
+        exit 1
+    fi
+    jq --arg b "${branch}" --arg s "${actual}" '
+        (if .branches[$b].promote_latest then .latest = $b else . end)
+        | .branches[$b].sha256 = $s
+        | .branches[$b] |= del(.pending, .promote_latest)' "${v}" > "${tmp}/v.json"
+    mv "${tmp}/v.json" "${v}"
+    changes+=("Moodle ${version} (new branch ${branch})")
+done
+
+for branch in $(jq -r '.branches | to_entries[] | select(.value.pending != true) | .key' "${v}"); do
     current="$(jq -r --arg b "${branch}" '.branches[$b].moodle' "${v}")"
     latest="$(grep -E "^${branch//./\\.}\.[0-9]+$" <<< "${moodle_tags}" | tail -1 || true)"
     [ -n "${latest}" ] || continue
