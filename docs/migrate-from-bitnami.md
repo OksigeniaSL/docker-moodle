@@ -32,7 +32,7 @@ Moving from 4.5 to 5.x is a major upgrade. Moodle 5.0 removed the Atto editor, C
 
 1. **Back up.** The image does it too, but keep your own copy of the database and the two volumes before any upgrade.
 
-2. **Check your add-ons.** Make sure each one has a release for the Moodle version you move to (on moodle.org/plugins). An add-on that does not support the new version may break pages after the upgrade.
+2. **Check your add-ons.** Make sure each one has a release for the Moodle version you move to (on moodle.org/plugins). An add-on that does not support the new version may break pages after the upgrade, sometimes only in the browser. For example, Moodle 5.2 removed the JavaScript modules `core/modal_factory` and `core/modal_registry` (MDL-79182), so add-ons that still use them lose their pop-up windows without any error on the server.
 
 3. **Change the image.**
 

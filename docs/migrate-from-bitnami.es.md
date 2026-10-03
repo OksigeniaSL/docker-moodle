@@ -32,7 +32,7 @@ Pasar de 4.5 a 5.x es una actualización mayor. Moodle 5.0 quitó del núcleo el
 
 1. **Haz copia.** La imagen también la hace, pero guarda tu propia copia de la base de datos y de los dos volúmenes antes de cualquier actualización.
 
-2. **Revisa tus plugins.** Comprueba en moodle.org/plugins que cada uno tiene versión para el Moodle al que vas. Un plugin que no soporta la versión nueva puede romper páginas tras la actualización.
+2. **Revisa tus plugins.** Comprueba en moodle.org/plugins que cada uno tiene versión para el Moodle al que vas. Un plugin que no soporta la versión nueva puede romper páginas tras la actualización, a veces solo en el navegador. Por ejemplo, Moodle 5.2 eliminó los módulos JavaScript `core/modal_factory` y `core/modal_registry` (MDL-79182), y los plugins que aún los usan pierden sus ventanas emergentes sin que el servidor dé ningún error.
 
 3. **Cambia la imagen.**
 
