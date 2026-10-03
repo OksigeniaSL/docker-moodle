@@ -38,6 +38,7 @@ RUN test -n "${MOODLE_VERSION}" && test -n "${MOODLE_SHA256}"; \
 # Install them from Moodle's own composer.lock, the way Moodle documents it.
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 WORKDIR /usr/src/moodle
+# hadolint ignore=SC2016
 RUN if php -r '$c = json_decode(file_get_contents("composer.json"), true); \
         foreach (array_keys($c["require"] ?? []) as $p) { if (!preg_match("/^(php|ext-|lib-)/", $p)) exit(0); } exit(1);'; then \
         apt-get update; apt-get install -y --no-install-recommends unzip; \
