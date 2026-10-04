@@ -1,8 +1,8 @@
 #!/bin/bash
 # Looks for new Moodle point releases on the branches in versions.json and
 # for a new Oksigenia Access release, and updates versions.json with the
-# version and the SHA-256 published by Moodle (checked against our own
-# download). Prints, in $GITHUB_OUTPUT format:
+# version and the SHA-256: for Moodle, the one Moodle publishes (checked
+# against our own download); for Access, that of the tag's archive. Prints, in $GITHUB_OUTPUT format:
 #   changed=yes|no
 #   summary=Moodle 5.2.4, 4.5.15
 #   newbranch=5.3        (a new stable branch exists that is not in versions.json)

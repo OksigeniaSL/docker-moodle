@@ -51,7 +51,7 @@ jobs:
           git commit -am "Update to ${SUMMARY}"
           git push --force origin "${branch}"
           pr="$(gh pr create --base main --head "${branch}" --title "Update to ${SUMMARY}" \
-            --body "Automatic update of \`versions.json\`. The SHA-256 published by Moodle was checked against the downloaded package. It is merged automatically when the full CI passes." \
+            --body "Automatic update of \`versions.json\`. Moodle packages are checked against the SHA-256 that Moodle publishes; for Oksigenia Access it is the SHA-256 of the release tag's archive. It is merged automatically when the full CI passes." \
             | sed 's#.*/##')"
 
           # Pull requests opened with GITHUB_TOKEN start no workflows: dispatch CI and wait for it.
@@ -67,7 +67,15 @@ jobs:
           [ -n "${run}" ] || { echo "CI run not found"; exit 1; }
           url="$(gh run view "${run}" --json url --jq .url)"
 
-          if gh run watch "${run}" --exit-status --interval 60 > /dev/null; then
+          ci=passed
+          gh run watch "${run}" --exit-status --interval 60 > /dev/null || ci=failed
+
+          # GitHub also creates a pull_request run for a bot's pull request, held for an
+          # approval nobody gives; it shows as failed once the PR closes. CI ran above.
+          gh run list --workflow ci.yml --branch "${branch}" --event pull_request --status action_required \
+            --json databaseId --jq '.[].databaseId' | xargs -r -n1 gh run delete || true
+
+          if [ "${ci}" = passed ]; then
             gh pr merge "${pr}" --squash --delete-branch
             gh workflow run release.yml --ref main
             echo "Merged and released ${SUMMARY}" >> "$GITHUB_STEP_SUMMARY"
