@@ -237,6 +237,8 @@ La imagen incluye [Oksigenia Access](https://github.com/OksigeniaSL/moodle-local
     --certificate-oidc-issuer https://token.actions.githubusercontent.com
   ```
 
+  Hace falta cosign 3, o cosign 2.6 con `--new-bundle-format`. Las versiones anteriores responden `no signatures found`.
+
 - **SBOM y procedencia:** cada imagen lleva SBOM y atestaciones de procedencia SLSA, que se consultan con `docker buildx imagetools inspect oksigenia/moodle:5.2 --format '{{json .SBOM}}'`. También lleva la atestación de compilación de GitHub, que se verifica con `gh attestation verify oci://ghcr.io/oksigeniasl/moodle:5.2 -R OksigeniaSL/docker-moodle` (GitHub CLI 2.49 o posterior).
 - **Escaneo:** no se publica ninguna compilación con una vulnerabilidad crítica que tenga parche.
 - **Avisos de seguridad:**
