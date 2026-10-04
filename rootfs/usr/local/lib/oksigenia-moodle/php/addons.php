@@ -3,8 +3,9 @@
 // tree, and where each one goes in the new tree.
 //
 // Usage: php addons.php <old-tree> <new-tree>
-// Prints "<component>\t<path in old tree>\t<path in new tree>" per add-on
-// to carry over. Standard plugins that Moodle has removed from core are
+// Prints "<component>\t<path in old tree>\t<path in new tree>\t<note>" per
+// add-on to carry over; the note is "removed" for a plugin that Moodle has
+// removed from core. Standard plugins that Moodle has removed from core are
 // reported on stderr.
 //
 // The plugin types and the standard plugin list come from the new tree
@@ -91,6 +92,7 @@ foreach ($types as $type => $newrel) {
             fwrite(STDERR, "{$type}_{$name}\n");
             continue;
         }
-        echo "{$type}_{$name}\t$oldrel/$name\t$newrel/$name\n";
+        $note = in_array($name, $deleted[$type] ?? [], true) ? 'removed' : '';
+        echo "{$type}_{$name}\t$oldrel/$name\t$newrel/$name\t$note\n";
     }
 }

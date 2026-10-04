@@ -113,6 +113,8 @@ A real migration also worked in place, keeping the data directory:
 3. Mount it at `/var/lib/mysql` (Bitnami used `/bitnami/mariadb/data`), set `MARIADB_AUTO_UPGRADE: "1"`, and replace Bitnami's `MARIADB_CHARACTER_SET`/`MARIADB_COLLATE` with `command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci`. With an empty root password, also `MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "1"`.
 4. The log shows `mariadb-upgrade` running once; users and databases stay as they were.
 
+If you copy the data directory, leave out `ibtmp1`. It holds temporary tables, MariaDB recreates it at start, and on a busy site it can reach tens of gigabytes.
+
 ## Formulas with the TeX notation filter
 
 If your site uses the TeX notation filter, check what renders its formulas today. Bitnami's images ship ImageMagick 6 from Debian 12, whose policy blocks PostScript, so the filter often fell back to the bundled mimetex without anyone noticing (the cached images are GIF87a files). Moodle 5.3 no longer ships mimetex: extend the image with LaTeX before moving to 5.3 (see *Extra tools* in the README), and set the preamble to UTF-8 if formulas contain accented text.

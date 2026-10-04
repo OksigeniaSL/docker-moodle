@@ -16,7 +16,7 @@ plugin() { mkdir -p "$1"; printf '<?php\n$plugin->version = %s;\n' "$2" > "$1/ve
 new="${work}/new"
 mkdir -p "${new}/lib" "${new}/public"
 echo '{"plugintypes": {"mod": "public/mod", "local": "public/local"}}' > "${new}/lib/components.json"
-echo '{"standard": {"mod": ["forum"]}, "deleted": {"mod": ["chat", "survey"]}}' > "${new}/lib/plugins.json"
+echo '{"standard": {"mod": ["forum"]}, "deleted": {"mod": ["chat", "survey", "legacy"]}}' > "${new}/lib/plugins.json"
 printf '<?php\n$version = 2026042003.00;\n' > "${new}/public/version.php"
 plugin "${new}/public/mod/forum" 2026042000
 
@@ -33,16 +33,26 @@ check() {
 }
 
 # Moodle 4.5 tree: core Chat is left behind, a separate Survey release
-# (newer than that core) is carried over, like any other add-on.
+# (newer than that core) is carried over, like any other add-on. So is a
+# plugin that this Moodle had already removed but whose folder is still
+# there (h5plib_v127 in a 4.5.13 tree): that Moodle ran it as an add-on.
 old="${work}/old45"
 mkdir -p "${old}/lib"
-echo '{"standard": {"mod": ["forum", "chat", "survey"]}}' > "${old}/lib/plugins.json"
+echo '{"standard": {"mod": ["forum", "chat", "survey"]}, "deleted": {"mod": ["legacy"]}}' > "${old}/lib/plugins.json"
 printf '<?php\n$version = 2024100714.00;\n' > "${old}/version.php"
 plugin "${old}/mod/forum" 2024100700
 plugin "${old}/mod/chat" 2024100700
 plugin "${old}/mod/survey" 2024110500
+plugin "${old}/mod/legacy" 2023100900
 plugin "${old}/local/extra" 2025010100
-check "4.5 tree: core module removed, separate release kept" "${old}" "local_extra mod_survey " "mod_chat "
+check "4.5 tree: core module removed, separate release and leftover kept" "${old}" "local_extra mod_legacy mod_survey " "mod_chat "
+notes="$(php "${ADDONS}" "${old}" "${new}" 2>/dev/null | awk -F'\t' '{print $1 "=" $4}' | sort | tr '\n' ' ')"
+if [ "${notes}" = "local_extra= mod_legacy=removed mod_survey=removed " ]; then
+    echo "ok: plugins Moodle removed from core are marked"
+else
+    echo "FAIL: notes [${notes}]"
+    failed=1
+fi
 
 # Moodle 5.2 tree with the separate releases installed: that Moodle did not
 # ship them, so they are add-ons.
@@ -58,7 +68,7 @@ check "5.2 tree: separate releases kept on a point update" "${old}" "mod_chat mo
 # An image built on this one ships Chat: its copy is used, unless the old
 # tree has a newer one.
 plugin "${new}/public/mod/chat" 2024110500
-check "image ships the same version: image copy used" "${work}/old45" "local_extra mod_survey " ""
+check "image ships the same version: image copy used" "${work}/old45" "local_extra mod_legacy mod_survey " ""
 plugin "${new}/public/mod/survey" 2024110400
 check "old tree newer than the image's copy: old copy kept" "${work}/old52" "mod_survey " ""
 

@@ -123,16 +123,20 @@ backup_code() {
 # Replace the core code in the volume with the image's, keeping config.php
 # and the add-on plugins. Interrupted swaps resume on the next start.
 replace_code() {
-    local next="${OKS_STATE}/next" addons component from to removed
+    local next="${OKS_STATE}/next" addons component from to note removed
     rm -rf "${next}"
     mkdir -p "${next}"
     cp -a "${IMAGE_CODE}/." "${next}/"
 
     addons="$(php "${OKS_PHP}/addons.php" "${MOODLE_CODE_DIR}" "${IMAGE_CODE}" 2>"${OKS_STATE}/removed.txt")" \
         || die "could not list the add-on plugins; nothing was changed"
-    while IFS=$'\t' read -r component from to; do
+    while IFS=$'\t' read -r component from to note; do
         [ -n "${component}" ] || continue
-        log "Keeping add-on ${component} (${from} -> ${to})"
+        if [ "${note}" = removed ]; then
+            log "Keeping add-on ${component} (${from} -> ${to}): Moodle removed it from core, so this is a separate copy; uninstall it if it is only left over from an older Moodle"
+        else
+            log "Keeping add-on ${component} (${from} -> ${to})"
+        fi
         # An image built on this one may ship an older copy of it.
         rm -rf "${next:?}/${to}"
         mkdir -p "$(dirname "${next}/${to}")"

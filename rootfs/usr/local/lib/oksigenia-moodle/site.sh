@@ -28,6 +28,13 @@ prepare_config() {
         php "${OKS_PHP}/write-config.php" native "${MOODLE_CODE_DIR}" || die "cannot write ${config}"
     fi
     export OKS_LAYOUT_CONFIG="${OKS_CONFIG}"
+    if [ -z "${OKS_DB_PASSWORD}" ]; then
+        if [ "${OKS_CONFIG}" = foreign ]; then
+            warn "config.php has an empty database password; use this only for local testing"
+        else
+            warn "MOODLE_DB_PASSWORD is empty; use this only for local testing"
+        fi
+    fi
 }
 
 write_managed_config() {

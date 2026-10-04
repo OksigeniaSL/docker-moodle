@@ -144,7 +144,6 @@ resolve_env() {
         fi
     fi
     : "${APACHE_SERVER_NAME:=localhost}" "${MOODLE_ADMIN_EMAIL:=admin@example.com}"
-    [ -z "${MOODLE_DB_PASSWORD}" ] && warn "MOODLE_DB_PASSWORD is empty; use this only for local testing"
 
     # Moodle's timezone also sets PHP's, unless PHP_DATE_TIMEZONE was given.
     if [ -n "${MOODLE_TIMEZONE:-}" ] && [ "${PHP_DATE_TIMEZONE:-UTC}" = UTC ]; then
