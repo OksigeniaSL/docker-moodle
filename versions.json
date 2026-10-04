@@ -1,7 +1,7 @@
 {
   "access": {
-    "version": "0.5.3",
-    "sha256": "ec74e066b83df9e0a54467d1bac67ab67a7565d15491dc52b4f3ea219cb30cde"
+    "version": "0.5.4",
+    "sha256": "c96515896cb3d1abd82ac16457ba63a73c3be10c9512736fda2dd115fd0b131e"
   },
   "branches": {
     "4.5": {
