@@ -133,6 +133,8 @@ replace_code() {
     while IFS=$'\t' read -r component from to; do
         [ -n "${component}" ] || continue
         log "Keeping add-on ${component} (${from} -> ${to})"
+        # An image built on this one may ship an older copy of it.
+        rm -rf "${next:?}/${to}"
         mkdir -p "$(dirname "${next}/${to}")"
         cp -a "${MOODLE_CODE_DIR}/${from}" "${next}/${to}"
     done <<< "${addons}"
@@ -262,9 +264,11 @@ check_removed_modules() {
     die "this upgrade removes plugins that Moodle no longer ships, and this site uses them:
         ${blocked[*]}
         Moodle's upgrade would uninstall them: activities of removed modules are deleted, and
-        selections of a removed theme are reset. Either keep the current image tag, or set
-        MOODLE_ALLOW_REMOVED_PLUGINS=yes to go ahead (a database backup is taken first).
-        Versions of these plugins for newer Moodle may exist at https://moodle.org/plugins"
+        selections of a removed theme are reset. To keep one, put a separate release of it
+        for the new Moodle in its place in ${MOODLE_CODE_DIR} and restart; it is then kept
+        as an add-on (Chat and Survey: github.com/moodlehq/moodle-mod_chat, moodle-mod_survey).
+        Otherwise keep the current image tag, or set MOODLE_ALLOW_REMOVED_PLUGINS=yes to let
+        Moodle remove them (a database backup is taken first)."
 }
 
 # Runs after the database is reachable, so the backup can include it.

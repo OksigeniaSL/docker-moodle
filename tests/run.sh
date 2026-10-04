@@ -5,9 +5,11 @@
 #   tests/run.sh install-pgsql     IMAGE=...
 #   tests/run.sh access            IMAGE=...
 #   tests/run.sh upgrade           IMAGE_OLD=... IMAGE=...
+#   tests/run.sh keep-removed      IMAGE_OLD=... IMAGE=...
 #   tests/run.sh bitnami           IMAGE=... BITNAMI_IMAGE=bitnamilegacy/moodle:5.0.2
 #   tests/run.sh bitnami-fresh     IMAGE=...
 #   tests/run.sh upgrade-failure   IMAGE=...
+#   tests/run.sh addons            IMAGE=...
 #
 # Each scenario runs in its own Compose project and removes it, volumes
 # included, when it finishes. KEEP=1 leaves it running for debugging.
@@ -52,7 +54,7 @@ wait_healthy() {
         case "${state}" in
             exited|dead) fail "moodle container stopped (exit code $(docker inspect -f '{{.State.ExitCode}}' "${id}"))" ;;
         esac
-        compose logs moodle 2>/dev/null | grep -q 'stays up without retrying' && fail "moodle is waiting after an error"
+        log_has 'stays up without retrying' && fail "moodle is waiting after an error"
         [ "${health}" = healthy ] && return 0
         status="${state}/${health}"
         [ "$(date +%s)" -lt "${deadline}" ] || fail "moodle not healthy after ${WAIT_INSTALL}s (status: ${status})"
@@ -75,6 +77,14 @@ page_has() {
     local body
     body="$(http_body "$1")"
     grep -qF -- "$2" <<< "${body}"
+}
+
+# True if the moodle service's log contains the text, read in full first
+# for the same reason.
+log_has() {
+    local logs
+    logs="$(compose logs --no-color moodle 2>/dev/null)"
+    grep -qF -- "$1" <<< "${logs}"
 }
 
 expect_status() {
@@ -158,6 +168,11 @@ add_test_plugin() {
 }
 
 case "${SCENARIO}" in
+    addons)
+        log "Which add-ons are carried over, on synthetic trees (${IMAGE:?})"
+        docker run --rm -v "${HERE}/addons.sh:/addons.sh:ro" --entrypoint bash "${IMAGE}" /addons.sh
+        ;;
+
     install-mariadb|install-pgsql)
         COMPOSE_FILE="${HERE}/compose/${SCENARIO#install-}.yaml"
         log "Clean install (${SCENARIO#install-}) with ${IMAGE:?}"
@@ -193,11 +208,11 @@ case "${SCENARIO}" in
         add_test_plugin "${dir}" www-data:www-data oksifail
         compose restart moodle
         deadline=$(( $(date +%s) + 600 ))
-        until compose logs moodle 2>/dev/null | grep -q 'stays up without retrying'; do
+        until log_has 'stays up without retrying'; do
             [ "$(date +%s)" -lt "${deadline}" ] || fail "the failing upgrade did not stop the start-up"
             sleep 5
         done
-        compose logs moodle | grep -q 'the database upgrade failed' || fail "the upgrade failure was not reported"
+        log_has 'the database upgrade failed' || fail "the upgrade failure was not reported"
         [ "$(docker inspect -f '{{.State.Status}}' "$(compose ps -a -q moodle)")" = running ] \
             || fail "after the failure the container should wait, not exit"
         count_backups() { compose run --rm --no-deps --entrypoint sh moodle -c 'ls /var/www/moodledata/oksigenia/backups | wc -l'; }
@@ -205,7 +220,8 @@ case "${SCENARIO}" in
         log "Restart: it must stop at once, without a new backup"
         compose restart moodle
         sleep 25
-        compose logs --since 30s moodle | grep -q 'a previous upgrade failed' || fail "the restart did not report the failed upgrade"
+        recent="$(compose logs --since 30s moodle)"
+        grep -q 'a previous upgrade failed' <<< "${recent}" || fail "the restart did not report the failed upgrade"
         [ "$(count_backups)" = "${first}" ] || fail "a new backup was taken after the failed upgrade"
         echo "no new backup after the failed upgrade (${first} kept)"
         log "Fix the cause and retry with MOODLE_RETRY_UPGRADE=yes"
@@ -257,13 +273,56 @@ case "${SCENARIO}" in
         echo "Upgraded ${old} -> ${new}, add-on kept"
         ;;
 
+    keep-removed)
+        # Moodle 5.0 removed Chat from core; moodlehq publishes it separately.
+        chat_url=https://github.com/moodlehq/moodle-mod_chat/archive/0d29fa11d2c12da5083d3fd21877d91def048fad.tar.gz
+        chat_sha=5f44d59de7e0c4f20f24ac35616f9dcc66267714533e5c23f0c9bd61acaab572
+        COMPOSE_FILE="${HERE}/compose/mariadb.yaml"
+        log "Install with ${IMAGE_OLD:?} and add a Chat activity"
+        IMAGE="${IMAGE_OLD}" compose up -d
+        wait_healthy
+        if [ -z "$(plugin_version mod_chat)" ]; then
+            echo "${IMAGE_OLD} has no Chat in core: nothing to test"
+            log "PASS: ${SCENARIO}"
+            exit 0
+        fi
+        # shellcheck disable=SC2016 # PHP code, expanded by PHP
+        result="$(moodle_eval 'require_once($CFG->dirroot . "/course/lib.php"); \core\session\manager::set_user(get_admin());
+            $course = create_course((object) ["fullname" => "Chat", "shortname" => "chat", "category" => 1]);
+            create_module((object) ["modulename" => "chat", "course" => $course->id, "section" => 0, "visible" => 1,
+                "name" => "Chat", "introeditor" => ["text" => "", "format" => FORMAT_HTML, "itemid" => file_get_unused_draft_itemid()],
+                "chattime" => time(), "schedule" => 0, "keepdays" => 0, "studentlogs" => 0]); echo "ok";' 2>&1)" || true
+        [ "${result}" = ok ] || fail "could not add a Chat activity: ${result}"
+        log "Switch to ${IMAGE:?}: it must stop before Moodle uninstalls Chat"
+        compose up -d moodle
+        deadline=$(( $(date +%s) + 300 ))
+        until log_has 'mod_chat (1 activities)'; do
+            [ "$(date +%s)" -lt "${deadline}" ] || fail "the image did not stop for the Chat activity"
+            sleep 5
+        done
+        log_has 'stays up without retrying' || fail "the container is not waiting"
+        log "Put moodlehq's Chat in place of the core one, as the message says"
+        compose exec -T -u www-data moodle sh -c "set -e; cd \"\$(mktemp -d)\"
+            curl -fsSL -o chat.tgz '${chat_url}'; echo '${chat_sha}  chat.tgz' | sha256sum -c - >/dev/null
+            tar -xzf chat.tgz; rm -rf /var/www/moodle/mod/chat; mv moodle-mod_chat-* /var/www/moodle/mod/chat"
+        compose up -d --force-recreate moodle
+        basic_checks
+        log_has 'Keeping add-on mod_chat' || fail "Chat was not carried over as an add-on"
+        [ "$(plugin_version mod_chat)" = 2024110500 ] || fail "Chat is at version $(plugin_version mod_chat), expected 2024110500"
+        # shellcheck disable=SC2016 # PHP code, expanded by PHP
+        [ "$(moodle_eval 'echo $DB->count_records("chat"), " ", $DB->count_records("course_modules",
+            ["module" => $DB->get_field("modules", "id", ["name" => "chat"])]);')" = "1 1" ] \
+            || fail "the Chat activity was lost"
+        echo "Chat kept as an add-on on $(moodle_release), its activity intact"
+        ;;
+
     bitnami)
         COMPOSE_FILE="${HERE}/compose/bitnami.yaml"
         log "Install with ${BITNAMI_IMAGE:?}"
         export MOODLE_IMAGE="${BITNAMI_IMAGE}"
         compose up -d
         deadline=$(( $(date +%s) + WAIT_INSTALL ))
-        until compose logs moodle 2>/dev/null | grep -q 'Moodle setup finished'; do
+        until log_has 'Moodle setup finished'; do
             [ "$(date +%s)" -lt "${deadline}" ] || fail "bitnami/moodle did not finish its setup"
             sleep 10
         done

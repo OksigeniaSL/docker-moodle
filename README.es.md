@@ -169,7 +169,7 @@ Para actualizar, cambia la etiqueta (por ejemplo de `5.2` a `5.3`) y recrea el c
 
 Si el volumen tiene un Moodle más nuevo que la imagen, o uno desde el que Moodle no puede actualizar directamente, el contenedor no arranca y explica por qué. También se detiene antes de tocar nada en dos casos:
 - un plugin de terceros haría que Moodle rechazara la actualización (por ejemplo, módulos que aún declaran `FEATURE_GROUPMEMBERSONLY`, que se rechazan desde la 5.3);
-- la actualización desinstalaría plugins retirados del núcleo que el sitio usa.
+- la actualización desinstalaría plugins retirados del núcleo que el sitio usa. Para conservar uno, pon en su lugar una versión aparte (véase [Chat y Encuesta](docs/migrate-from-bitnami.es.md#qué-etiqueta-elegir)).
 
 Si una actualización falla a medias, el sitio queda en modo mantenimiento y los arranques siguientes se detienen enseguida, para que un bucle de reinicios no sustituya la copia buena. Ante cualquiera de estos problemas, el contenedor no sale: se queda esperando, marcado como no sano, porque una política de reinicio solo repetiría el mismo error. Corrige la causa y reinícialo. Si varios contenedores comparten los mismos volúmenes (réplicas web, un contenedor de cron), se turnan y solo uno actualiza.
 

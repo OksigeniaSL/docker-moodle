@@ -28,7 +28,16 @@ When the container starts and finds a `bitnami/moodle` installation in `/bitnami
 
 Moodle 5.3 also removes the Classic theme from core: during the upgrade it uninstalls Classic and resets every course, category, cohort and user selection of it, unless you install Classic separately first. The image stops before upgrading if the site uses Classic (`MOODLE_ALLOW_REMOVED_PLUGINS=yes` lets it go ahead).
 
-Moving from 4.5 to 5.x is a major upgrade. Moodle 5.0 removed the Atto editor, Chat and Survey from core. If you use them, install them from [moodle.org/plugins](https://moodle.org/plugins) before or after the upgrade. The image warns about them and does not carry the old copies over.
+Moving from 4.5 to 5.x is a major upgrade. Moodle 5.0 removed the Atto editor, Chat and Survey from core, and its upgrade uninstalls them. Chat and Survey activities are deleted with them, so the image stops before upgrading a site that has any. To keep them, put the separate release that Moodle HQ publishes ([moodle-mod_chat](https://github.com/moodlehq/moodle-mod_chat), [moodle-mod_survey](https://github.com/moodlehq/moodle-mod_survey)) in place of the old copy, and restart. The container stays up while it waits, so you can do it from there:
+
+```sh
+docker compose exec -u www-data moodle sh -c 'cd "$(mktemp -d)" &&
+  curl -fsSL https://github.com/moodlehq/moodle-mod_chat/archive/refs/heads/main.tar.gz | tar -xz &&
+  rm -rf /var/www/moodle/mod/chat && mv moodle-mod_chat-main /var/www/moodle/mod/chat'
+docker compose restart moodle
+```
+
+Moodle then upgrades Chat as an add-on and keeps its activities, and later image updates carry it over like any other add-on. For Survey, replace `chat` with `survey`. The image does not carry Atto over; if you want it back, install it from [moodle.org/plugins](https://moodle.org/plugins).
 
 ## Steps
 

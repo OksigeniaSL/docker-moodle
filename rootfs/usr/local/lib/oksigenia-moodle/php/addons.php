@@ -3,8 +3,9 @@
 // tree, and where each one goes in the new tree.
 //
 // Usage: php addons.php <old-tree> <new-tree>
-// Prints "<component>\t<path in old tree>\t<path in new tree>" per add-on.
-// Standard plugins that Moodle has removed from core are reported on stderr.
+// Prints "<component>\t<path in old tree>\t<path in new tree>" per add-on
+// to carry over. Standard plugins that Moodle has removed from core are
+// reported on stderr.
 //
 // The plugin types and the standard plugin list come from the new tree
 // (lib/components.json, lib/plugins.json and each standard plugin's
@@ -37,6 +38,26 @@ foreach ($types as $type => $path) {
     }
 }
 
+$pluginversion = function (string $dir): float {
+    $code = @file_get_contents("$dir/version.php");
+    return ($code !== false && preg_match('/\$plugin->version\s*=\s*([0-9.]+)/', $code, $m)) ? (float) $m[1] : 0.0;
+};
+
+// A plugin that Moodle removed from core is left behind when it is the copy
+// that the old Moodle shipped. A separate release of it (moodlehq's Chat and
+// Survey, for instance) is an add-on like any other. The old tree tells them
+// apart: its Moodle does not list the separate release as standard, or the
+// release is newer than that Moodle's core, which no standard plugin is.
+$oldstandard = is_file("$old/lib/plugins.json") ? ($json("$old/lib/plugins.json")['standard'] ?? []) : null;
+$oldcore = preg_match('/^\$version\s*=\s*([0-9.]+)/m',
+    (string) @file_get_contents($oldpublic ? "$old/public/version.php" : "$old/version.php"), $m) ? (float) $m[1] : 0.0;
+$shipped = function (string $type, string $name, string $dir) use ($oldstandard, $oldcore, $pluginversion): bool {
+    if ($oldstandard !== null && !in_array($name, $oldstandard[$type] ?? [], true)) {
+        return false;
+    }
+    return $oldcore === 0.0 || $pluginversion($dir) <= $oldcore;
+};
+
 // The same directory, as laid out in the old tree.
 $oldpath = function (string $newrel) use ($newpublic, $oldpublic): string {
     if ($newpublic && !$oldpublic && str_starts_with($newrel, 'public/')) {
@@ -60,7 +81,13 @@ foreach ($types as $type => $newrel) {
         if (in_array($name, $standard[$type] ?? [], true)) {
             continue;
         }
-        if (in_array($name, $deleted[$type] ?? [], true)) {
+        if (is_file("$new/$newrel/$name/version.php")) {
+            // The image ships it too (an image built on this one): its copy
+            // is used, unless the one in the old tree is newer.
+            if ($pluginversion("$old/$oldrel/$name") <= $pluginversion("$new/$newrel/$name")) {
+                continue;
+            }
+        } else if (in_array($name, $deleted[$type] ?? [], true) && $shipped($type, $name, "$old/$oldrel/$name")) {
             fwrite(STDERR, "{$type}_{$name}\n");
             continue;
         }

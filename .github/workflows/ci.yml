@@ -26,7 +26,7 @@ jobs:
           docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:stable -x -P SCRIPTDIR \
             rootfs/usr/local/bin/docker-entrypoint rootfs/usr/local/bin/moodle-cli \
             rootfs/usr/local/bin/moodle-healthcheck rootfs/usr/local/lib/oksigenia-moodle/run.sh \
-            tests/run.sh .github/scripts/*.sh
+            tests/run.sh tests/addons.sh .github/scripts/*.sh
       - name: Hadolint
         run: docker run --rm -v "$PWD:/mnt:ro" -w /mnt hadolint/hadolint:latest hadolint --config .hadolint.yaml Dockerfile
       - name: PHP syntax
@@ -78,7 +78,7 @@ jobs:
       fail-fast: false
       matrix:
         branch: ${{ fromJSON(needs.matrix.outputs.branches) }}
-        scenario: [install-mariadb, install-pgsql, access, bitnami, bitnami-fresh, upgrade-failure]
+        scenario: [install-mariadb, install-pgsql, access, bitnami, bitnami-fresh, upgrade-failure, addons]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -120,3 +120,9 @@ jobs:
           IMAGE_OLD: moodle-test:${{ steps.b.outputs.old }}
           IMAGE: moodle-test:${{ steps.b.outputs.new }}
         run: tests/run.sh upgrade
+      - name: keep a module removed from core ${{ steps.b.outputs.old }} -> ${{ steps.b.outputs.new }}
+        if: steps.b.outputs.old != steps.b.outputs.new
+        env:
+          IMAGE_OLD: moodle-test:${{ steps.b.outputs.old }}
+          IMAGE: moodle-test:${{ steps.b.outputs.new }}
+        run: tests/run.sh keep-removed

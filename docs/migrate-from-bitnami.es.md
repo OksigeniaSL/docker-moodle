@@ -28,7 +28,16 @@ Cuando el contenedor arranca y encuentra una instalación de `bitnami/moodle` en
 
 Moodle 5.3 también retira del núcleo el tema Classic. Al actualizar lo desinstala y reinicia todas las selecciones de ese tema en cursos, categorías, cohortes y usuarios, salvo que antes instales Classic aparte. La imagen se detiene antes de actualizar si el sitio usa Classic; con `MOODLE_ALLOW_REMOVED_PLUGINS=yes`, sigue adelante.
 
-Pasar de 4.5 a 5.x es una actualización mayor. Moodle 5.0 quitó del núcleo el editor Atto, el Chat y la Encuesta (Survey). Si los usas, instálalos desde [moodle.org/plugins](https://moodle.org/plugins) antes o después de actualizar. La imagen avisa de ellos y no conserva las copias antiguas.
+Pasar de 4.5 a 5.x es una actualización mayor. Moodle 5.0 quitó del núcleo el editor Atto, el Chat y la Encuesta (Survey), y su actualización los desinstala. Las actividades de Chat y Encuesta se borran con ellos, así que la imagen se detiene antes de actualizar un sitio que tenga alguna. Para conservarlas, pon en el lugar de la copia antigua la versión aparte que publica Moodle HQ ([moodle-mod_chat](https://github.com/moodlehq/moodle-mod_chat), [moodle-mod_survey](https://github.com/moodlehq/moodle-mod_survey)) y reinicia. El contenedor sigue en marcha mientras espera, así que puedes hacerlo desde él:
+
+```sh
+docker compose exec -u www-data moodle sh -c 'cd "$(mktemp -d)" &&
+  curl -fsSL https://github.com/moodlehq/moodle-mod_chat/archive/refs/heads/main.tar.gz | tar -xz &&
+  rm -rf /var/www/moodle/mod/chat && mv moodle-mod_chat-main /var/www/moodle/mod/chat'
+docker compose restart moodle
+```
+
+Moodle actualiza entonces el Chat como un plugin más y conserva sus actividades, y las siguientes actualizaciones de la imagen lo mantienen como a cualquier otro plugin. Para la Encuesta, cambia `chat` por `survey`. La imagen no conserva Atto; si lo quieres, instálalo desde [moodle.org/plugins](https://moodle.org/plugins).
 
 ## Pasos
 
