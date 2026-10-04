@@ -12,6 +12,7 @@ Las imágenes gratuitas de Moodle de Bitnami dejaron de actualizarse en agosto d
   - Basta con cambiar la línea `image:` para que el sitio siga funcionando, actualizado y con sus plugins.
   - La migración se prueba en CI con volúmenes reales de `bitnamilegacy/moodle`. Véase [Migrar desde Bitnami](docs/migrate-from-bitnami.es.md).
 - **Cambiar la etiqueta actualiza Moodle de verdad.** Antes de tocar nada, la imagen hace copia de la base de datos y del código.
+- **Completa para Moodle 5.x:** el router de URL viene configurado y las dependencias de Composer de Moodle se instalan al compilar la imagen. El paquete oficial no las trae, la comprobación de entorno de Moodle las pide y en la 5.3 las necesitan los clientes OAuth 2.
 - **Al día:**
   - Todas las ramas soportadas se reconstruyen cada semana, para recoger los parches de Debian y de PHP.
   - Las versiones nuevas de Moodle se incorporan automáticamente.
@@ -215,7 +216,7 @@ Los nombres de variables de Bitnami siguen funcionando, y los logs sugieren los 
 
 ## Oksigenia Access
 
-La imagen incluye [Oksigenia Access](https://github.com/OksigeniaSL/moodle-local_oksigeniaaccess), un panel de accesibilidad para Moodle. Tiene 15 controles (tamaño de texto, contraste, tipografía para dislexia, guía de lectura…) y 8 idiomas. **No se instala si no lo pides:**
+La imagen incluye [Oksigenia Access](https://github.com/OksigeniaSL/moodle-local_oksigeniaaccess), un panel de accesibilidad para Moodle. Tiene 17 controles (tamaño de texto, contraste, tipografía para dislexia, guía de lectura…), 4 perfiles de un clic y 8 idiomas. **No se instala si no lo pides:**
 
 ```yaml
     environment:

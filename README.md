@@ -10,6 +10,7 @@ Bitnami's free Moodle images stopped receiving updates in August 2025 (`bitnami/
 
 - **Same Compose file, new image.** It accepts Bitnami's environment variables and volume layout. Change the `image:` line and your site keeps running, upgraded, with its add-on plugins. The migration is tested in CI against real `bitnamilegacy/moodle` volumes. See [Migrating from Bitnami](docs/migrate-from-bitnami.md).
 - **Changing the tag really upgrades Moodle.** Before touching anything, the image backs up the database and the code.
+- **Complete for Moodle 5.x:** the URL router is configured, and Moodle's Composer dependencies are installed when the image is built. The official package leaves them out; Moodle's environment check asks for them, and in 5.3 OAuth 2 clients need them.
 - **Kept current:**
   - Every supported branch is rebuilt every week, to pick up Debian and PHP fixes.
   - New Moodle releases are picked up automatically.
@@ -203,7 +204,7 @@ The image recognises the `/bitnami/moodle` and `/bitnami/moodledata` volumes, re
 
 ## Oksigenia Access
 
-The image includes [Oksigenia Access](https://github.com/OksigeniaSL/moodle-local_oksigeniaaccess), an accessibility panel for Moodle. It covers 15 controls (text size, contrast, dyslexia-friendly font, reading guide…) and 8 languages. **It is not installed unless you ask for it:**
+The image includes [Oksigenia Access](https://github.com/OksigeniaSL/moodle-local_oksigeniaaccess), an accessibility panel for Moodle. It covers 17 controls (text size, contrast, dyslexia-friendly font, reading guide…), 4 one-click profiles and 8 languages. **It is not installed unless you ask for it:**
 
 ```yaml
     environment:
