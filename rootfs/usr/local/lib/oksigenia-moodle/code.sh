@@ -37,7 +37,12 @@ fix_permissions() {
         chown -R www-data:www-data "${MOODLE_CODE_DIR}"
     fi
     if ! as_www test -w "${MOODLE_DATA_DIR}" -a -x "${MOODLE_DATA_DIR}"; then
-        log "Giving www-data ownership of ${MOODLE_DATA_DIR} (this can take a while on large volumes)"
+        local perm why
+        perm="$(ls -ld "${MOODLE_DATA_DIR}" | awk '{print $1}')"
+        why="www-data cannot write to it: ${perm} $(stat -c '%U:%G' "${MOODLE_DATA_DIR}")"
+        # ls marks POSIX ACLs with a "+": then they decide, not the mode.
+        [[ "${perm}" == *+ ]] && why+=", with POSIX ACLs (see getfacl)"
+        log "Giving www-data ownership of ${MOODLE_DATA_DIR}, as ${why}. This can take a while on large volumes"
         chown -R www-data:www-data "${MOODLE_DATA_DIR}"
     fi
     # Moodle CLI scripts run as root (docker exec without -u) leave root-owned

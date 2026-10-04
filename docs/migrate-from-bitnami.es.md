@@ -18,6 +18,8 @@ Cuando el contenedor arranca y encuentra una instalación de `bitnami/moodle` en
 
 `/bitnami/moodledata` conserva sus dueños: los ficheros de Bitnami son de `daemon`, y el usuario de la imagen los escribe gracias a sus grupos. El código de `/bitnami/moodle` pasa a `www-data`, porque su núcleo se sustituye en cada actualización. El árbol anterior, con sus dueños originales, queda en la copia, así que puedes volver a la imagen de Bitnami si lo necesitas (véase [Volver atrás](#volver-atrás)).
 
+Si `www-data` no puede escribir en `/bitnami/moodledata`, la imagen le da la propiedad de todo el volumen y el log explica por qué. Con ACL POSIX en las carpetas del host (un `+` tras los permisos en `ls -l`), los permisos solos no lo dicen: míralas con `getfacl`. Una entrada `group::` sin `w` para el grupo propietario (`root` o `daemon`) deja fuera a `www-data` aunque `other` pueda escribir, porque `www-data` pertenece a esos grupos.
+
 ## Qué etiqueta elegir
 
 | Tienes | Pasa a | Notas |

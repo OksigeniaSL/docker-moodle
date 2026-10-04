@@ -18,6 +18,8 @@ When the container starts and finds a `bitnami/moodle` installation in `/bitnami
 
 `/bitnami/moodledata` keeps its ownership: Bitnami's files belong to `daemon`, and the image's user writes them through its groups. The code in `/bitnami/moodle` is handed to `www-data`, because its core is replaced on every upgrade. The previous tree, with its original ownership, stays in the backup, so you can go back to the Bitnami image if you need to (see [Going back](#going-back)).
 
+If `www-data` cannot write to `/bitnami/moodledata`, the image gives it ownership of the whole volume, and the log says why. With POSIX ACLs on the host folders (a `+` after the mode in `ls -l`), the mode alone does not tell: check them with `getfacl`. An entry `group::` without `w` for the owning group (`root` or `daemon`) keeps `www-data` out even when `other` can write, because `www-data` belongs to those groups.
+
 ## Which tag to choose
 
 | You run | Move to | Notes |
