@@ -45,7 +45,15 @@ Moodle then upgrades Chat as an add-on and keeps its activities, and later image
 
 2. **Check your add-ons.** Make sure each one has a release for the Moodle version you move to (on moodle.org/plugins). An add-on that does not support the new version may break pages after the upgrade, sometimes only in the browser. For example, Moodle 5.2 removed the JavaScript modules `core/modal_factory` and `core/modal_registry` (MDL-79182), so add-ons that still use them lose their pop-up windows without any error on the server.
 
-3. **Change the image.**
+3. **Close the site, if people use it.** In the Bitnami container:
+
+   ```sh
+   docker compose exec -u daemon moodle php /opt/bitnami/moodle/admin/cli/maintenance.php --enable
+   ```
+
+   The image keeps the site closed after the upgrade, so you can check it before anyone comes back. `--enable` closes it to everyone, administrators included; with `--enableold` administrators can still log in and check it in the browser. Open it afterwards with `docker compose exec moodle moodle-cli maintenance --disable`.
+
+4. **Change the image.**
 
    ```diff
       moodle:
@@ -55,7 +63,7 @@ Moodle then upgrades Chat as an add-on and keeps its activities, and later image
 
    Leave everything else as it is: the variables (`MOODLE_DATABASE_HOST`, `MOODLE_USERNAME`…), the volumes at `/bitnami/moodle` and `/bitnami/moodledata`, and the ports.
 
-4. **Recreate the container and follow the logs.**
+5. **Recreate the container and follow the logs.**
 
    ```sh
    docker compose pull moodle
@@ -65,7 +73,9 @@ Moodle then upgrades Chat as an add-on and keeps its activities, and later image
 
    You will see the add-ons it keeps, the backups, the upgrade and finally `Moodle is ready`. The logs also list the Bitnami variables in use and their new names.
 
-5. **Check the site.** Log in as an administrator. Open *Site administration → Notifications* and *Server → Environment*, and check your add-ons in *Plugins overview*.
+6. **Check the site.** Log in as an administrator. Open *Site administration → Notifications* and *Server → Environment*, and check your add-ons in *Plugins overview*.
+
+After a move from 4.5 to 5.x, the first cron runs take longer: Moodle 5.0 moves every question bank into an activity of its own, and creates courses to hold the shared ones. Until that ends, Moodle warns that cron is still running, and course and activity counts grow because of those new courses.
 
 ## Optional: switch to the new names
 
@@ -111,7 +121,7 @@ A real migration also worked in place, keeping the data directory:
 1. Take the dump above, then run `SET GLOBAL innodb_fast_shutdown=0;` and stop the 10.11 container cleanly.
 2. `chown -R 999:999` the data directory (Bitnami's MariaDB runs as uid 1001, the official one as 999).
 3. Mount it at `/var/lib/mysql` (Bitnami used `/bitnami/mariadb/data`), set `MARIADB_AUTO_UPGRADE: "1"`, and replace Bitnami's `MARIADB_CHARACTER_SET`/`MARIADB_COLLATE` with `command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci`. With an empty root password, also `MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "1"`.
-4. The log shows `mariadb-upgrade` running once; users and databases stay as they were.
+4. The log shows `mariadb-upgrade` running once; users and databases stay as they were. Before it runs, MariaDB may report `[ERROR] Incorrect definition of table mysql.column_stats`; `mariadb-upgrade` fixes that table.
 
 If you copy the data directory, leave out `ibtmp1`. It holds temporary tables, MariaDB recreates it at start, and on a busy site it can reach tens of gigabytes.
 

@@ -45,7 +45,15 @@ Moodle actualiza entonces el Chat como un plugin más y conserva sus actividades
 
 2. **Revisa tus plugins.** Comprueba en moodle.org/plugins que cada uno tiene versión para el Moodle al que vas. Un plugin que no soporta la versión nueva puede romper páginas tras la actualización, a veces solo en el navegador. Por ejemplo, Moodle 5.2 eliminó los módulos JavaScript `core/modal_factory` y `core/modal_registry` (MDL-79182), y los plugins que aún los usan pierden sus ventanas emergentes sin que el servidor dé ningún error.
 
-3. **Cambia la imagen.**
+3. **Cierra el sitio, si alguien lo está usando.** En el contenedor de Bitnami:
+
+   ```sh
+   docker compose exec -u daemon moodle php /opt/bitnami/moodle/admin/cli/maintenance.php --enable
+   ```
+
+   La imagen mantiene el sitio cerrado después de actualizar, así que puedes revisarlo antes de que vuelva nadie. `--enable` lo cierra para todos, administradores incluidos; con `--enableold` los administradores pueden seguir entrando y revisarlo en el navegador. Ábrelo después con `docker compose exec moodle moodle-cli maintenance --disable`.
+
+4. **Cambia la imagen.**
 
    ```diff
       moodle:
@@ -55,7 +63,7 @@ Moodle actualiza entonces el Chat como un plugin más y conserva sus actividades
 
    Deja todo lo demás igual: las variables (`MOODLE_DATABASE_HOST`, `MOODLE_USERNAME`…), los volúmenes en `/bitnami/moodle` y `/bitnami/moodledata`, y los puertos.
 
-4. **Recrea el contenedor y sigue los logs.**
+5. **Recrea el contenedor y sigue los logs.**
 
    ```sh
    docker compose pull moodle
@@ -65,10 +73,12 @@ Moodle actualiza entonces el Chat como un plugin más y conserva sus actividades
 
    Verás los plugins que conserva, las copias, la actualización y, al final, `Moodle is ready`. Los logs también listan las variables de Bitnami en uso con su nombre nuevo.
 
-5. **Comprueba el sitio.** Entra como administrador y revisa:
+6. **Comprueba el sitio.** Entra como administrador y revisa:
    - *Administración del sitio → Notificaciones*;
    - *Servidor → Entorno*;
    - tus plugins, en *Vista general de extensiones*.
+
+Al pasar de 4.5 a 5.x, las primeras ejecuciones del cron tardan más: Moodle 5.0 pasa cada banco de preguntas a una actividad propia y crea cursos para guardar los compartidos. Hasta que termina, Moodle avisa de que el cron sigue en marcha, y los recuentos de cursos y actividades suben por esos cursos nuevos.
 
 ## Opcional: pasar a los nombres nuevos
 
@@ -116,7 +126,7 @@ En una migración real también funcionó sobre el mismo directorio de datos:
 3. Móntalo en `/var/lib/mysql` (Bitnami usaba `/bitnami/mariadb/data`) y pon `MARIADB_AUTO_UPGRADE: "1"`.
    - Sustituye `MARIADB_CHARACTER_SET` y `MARIADB_COLLATE` de Bitnami por `command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci`.
    - Si la contraseña de root está vacía, añade también `MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "1"`.
-4. En el log verás que `mariadb-upgrade` se ejecuta una vez; usuarios y bases de datos quedan como estaban.
+4. En el log verás que `mariadb-upgrade` se ejecuta una vez; usuarios y bases de datos quedan como estaban. Antes de que se ejecute, MariaDB puede mostrar `[ERROR] Incorrect definition of table mysql.column_stats`; `mariadb-upgrade` arregla esa tabla.
 
 Si copias el directorio de datos, deja fuera `ibtmp1`. Guarda tablas temporales, MariaDB lo vuelve a crear al arrancar y en un sitio con mucho uso puede llegar a decenas de gigas.
 

@@ -103,6 +103,14 @@ if ($action === 'state') {
     exit(0);
 }
 
+// A value from Moodle's config table, empty if it is not set.
+if ($action === 'config') {
+    $conn = connect($type);
+    $name = preg_replace('/[^a-z0-9_]/', '', $argv[2] ?? '');
+    echo (string) query_one($conn, $type, "SELECT value FROM {$prefix}config WHERE name = '$name'"), "\n";
+    exit(0);
+}
+
 // Number of activities of a module (e.g. "chat") in courses, 0 if none.
 if ($action === 'activities') {
     $conn = connect($type);

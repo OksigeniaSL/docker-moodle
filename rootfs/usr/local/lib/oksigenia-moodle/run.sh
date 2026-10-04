@@ -16,10 +16,19 @@ CRON_LOG="${MOODLE_DATA_DIR}/oksigenia/cron-last.log"
 # three minutes to pick up ad hoc tasks as they arrive. Runs here never
 # overlap, so each one stays alive for most of the interval instead.
 cron_loop() {
-    local interval="${MOODLE_CRON_INTERVAL}" start elapsed rc
+    local interval="${MOODLE_CRON_INTERVAL}" start elapsed rc paused=no
     local keepalive="${MOODLE_CRON_KEEPALIVE:-$(( interval > 15 ? interval - 10 : 0 ))}"
     sleep 5
     while :; do
+        # Moodle's cron refuses to run in CLI maintenance mode; wait quietly.
+        if [ -f "${MOODLE_DATA_DIR}/climaintenance.html" ]; then
+            [ "${paused}" = yes ] || log "Cron paused while the site is in maintenance mode"
+            paused=yes
+            sleep "${interval}"
+            continue
+        fi
+        [ "${paused}" = yes ] && log "Cron resumed: the site left maintenance mode"
+        paused=no
         start=$(date +%s)
         rc=0
         ( cd "${MOODLE_CODE_DIR}" && php admin/cli/cron.php --keep-alive="${keepalive}" ) > "${CRON_LOG}.tmp" 2>&1 || rc=$?

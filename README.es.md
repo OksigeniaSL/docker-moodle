@@ -165,7 +165,7 @@ Para actualizar, cambia la etiqueta (por ejemplo de `5.2` a `5.3`) y recrea el c
 
 1. Guarda un volcado de la base de datos y un archivo del código actual en `moodledata/oksigenia/backups/`.
 2. Sustituye el núcleo de Moodle y conserva tus plugins, `config.php` y todo lo que no es del núcleo.
-3. Ejecuta la actualización de Moodle en modo mantenimiento, purga las cachés y arranca el sitio.
+3. Ejecuta la actualización de Moodle en modo mantenimiento, purga las cachés y arranca el sitio. Si el sitio ya estaba en mantenimiento, sigue en él, y el cron espera a que se abra.
 
 Si el volumen tiene un Moodle más nuevo que la imagen, o uno desde el que Moodle no puede actualizar directamente, el contenedor no arranca y explica por qué. También se detiene antes de tocar nada en dos casos:
 - un plugin de terceros haría que Moodle rechazara la actualización (por ejemplo, módulos que aún declaran `FEATURE_GROUPMEMBERSONLY`, que se rechazan desde la 5.3);

@@ -264,8 +264,15 @@ case "${SCENARIO}" in
         add_test_plugin "${dir}" www-data:www-data
         cli upgrade --non-interactive >/dev/null
         [ -n "$(plugin_version local_oksitest)" ] || fail "test plugin not installed"
-        log "Switch to ${IMAGE:?}"
+        log "Close the site (CLI maintenance mode), then switch to ${IMAGE:?}"
+        cli maintenance --enable >/dev/null
         compose up -d moodle
+        wait_healthy
+        log_has 'The site stays in maintenance mode, as it was before the upgrade' \
+            || fail "the upgrade did not report keeping the maintenance mode"
+        [ "$(http_status /login/index.php)" = 503 ] || fail "the upgrade opened a site that was in maintenance mode"
+        echo "the site stays in maintenance mode after the upgrade, and the container is healthy"
+        cli maintenance --disable >/dev/null
         basic_checks
         new="$(moodle_release)"
         [ "${old}" != "${new}" ] || fail "release did not change (${new})"

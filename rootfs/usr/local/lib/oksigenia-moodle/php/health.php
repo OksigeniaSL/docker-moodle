@@ -15,6 +15,13 @@ function unhealthy(string $why): void {
     exit("$why\n");
 }
 
+// In CLI maintenance mode Moodle answers every web request with its
+// maintenance page (503) while config.php loads. The site is closed on
+// purpose and the container works, so that counts as healthy.
+if (is_file(rtrim(getenv('MOODLE_DATA_DIR') ?: '/var/www/moodledata', '/') . '/climaintenance.html')) {
+    exit("OK\n");
+}
+
 $config = rtrim(getenv('MOODLE_CODE_DIR') ?: '/var/www/moodle', '/') . '/config.php';
 if (!is_readable($config)) {
     unhealthy('not configured');

@@ -156,15 +156,51 @@ clear_failed_upgrade_flag() {
         -exec rm -rf {} + 2>/dev/null || true
 }
 
+# The upgrade runs in CLI maintenance mode. A site that its administrator had
+# already closed (CLI maintenance, the web setting, or a scheduled start)
+# must not be opened by it: the state before is kept in a file until the
+# upgrade succeeds, so a retry after a failure restores it too.
+MAINTENANCE_BEFORE_NAME=maintenance-before
+
+save_maintenance_state() {
+    local file="${OKS_DATA_STATE}/${MAINTENANCE_BEFORE_NAME}" state="" later
+    [ -f "${file}" ] && return 0
+    [ -f "${OKS_CFG_DATAROOT:-${MOODLE_DATA_DIR}}/climaintenance.html" ] && state+="cli "
+    [ "$(php "${OKS_PHP}/db.php" config maintenance_enabled)" = 1 ] && state+="web "
+    later="$(php "${OKS_PHP}/db.php" config maintenance_later)" || later=""
+    [ -n "${later}" ] && state+="later=${later} "
+    printf '%s\n' "${state}" > "${file}"
+}
+
+restore_maintenance_state() {
+    local file="${OKS_DATA_STATE}/${MAINTENANCE_BEFORE_NAME}" state="" later
+    [ -f "${file}" ] && state=" $(cat "${file}")"
+    if [[ "${state}" == *" cli "* ]]; then
+        log "The site stays in maintenance mode, as it was before the upgrade. To open it: moodle-cli maintenance --disable"
+    else
+        moodle_php admin/cli/maintenance.php --disable >/dev/null || true
+        if [[ "${state}" == *" web "* ]]; then
+            moodle_php admin/cli/maintenance.php --enableold >/dev/null || true
+            log "The site stays in maintenance mode for all but administrators, as it was before the upgrade"
+        fi
+        later="$(sed -n 's/.*later=\([0-9]*\).*/\1/p' <<< "${state}")"
+        if [ -n "${later}" ]; then
+            moodle_php admin/cli/cfg.php --name=maintenance_later --set="${later}" >/dev/null || true
+            log "The maintenance mode scheduled before the upgrade is kept: it starts at $(date -u -d "@${later}" '+%Y-%m-%d %H:%M UTC')"
+        fi
+    fi
+    rm -f "${file}"
+}
+
 upgrade_site() {
     local rc=0 out
     out="$(moodle_php admin/cli/upgrade.php --is-pending 2>&1)" || rc=$?
     case "${rc}" in
         0)
-            # After a failed upgrade that needs nothing more, leave the
-            # maintenance mode that the failed attempt turned on.
-            if [ "${OKS_RETRYING:-no}" = yes ]; then
-                moodle_php admin/cli/maintenance.php --disable >/dev/null || true
+            # After a failed or interrupted upgrade that needs nothing more,
+            # go back to the maintenance mode the site had before it.
+            if [ "${OKS_RETRYING:-no}" = yes ] || [ -f "${OKS_DATA_STATE}/${MAINTENANCE_BEFORE_NAME}" ]; then
+                restore_maintenance_state
                 moodle_php admin/cli/purge_caches.php >/dev/null || true
             fi
             return 0
@@ -179,6 +215,7 @@ upgrade_site() {
         backup_database
     fi
     log "Upgrading the Moodle database"
+    save_maintenance_state
     moodle_php admin/cli/maintenance.php --enable >/dev/null || true
     if ! moodle_php admin/cli/upgrade.php --non-interactive; then
         printf 'when: %s\nimage: Moodle %s\nbackups: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -190,7 +227,7 @@ upgrade_site() {
     fi
     remove_deleted_standard_plugins
     moodle_php admin/cli/purge_caches.php >/dev/null || true
-    moodle_php admin/cli/maintenance.php --disable >/dev/null || true
+    restore_maintenance_state
     backup_rotate
     log "Database upgrade finished"
 }

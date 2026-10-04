@@ -133,7 +133,7 @@ replace_code() {
     while IFS=$'\t' read -r component from to note; do
         [ -n "${component}" ] || continue
         if [ "${note}" = removed ]; then
-            log "Keeping add-on ${component} (${from} -> ${to}): Moodle removed it from core, so this is a separate copy; uninstall it if it is only left over from an older Moodle"
+            log "Keeping add-on ${component} (${from} -> ${to}): Moodle removed it from core, so this is a separate copy. If it is only left over from an older Moodle, delete ${MOODLE_CODE_DIR}/${to} first, then run: moodle-cli uninstall_plugins --plugins=${component} --run"
         else
             log "Keeping add-on ${component} (${from} -> ${to})"
         fi
