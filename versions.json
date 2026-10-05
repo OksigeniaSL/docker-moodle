@@ -18,13 +18,11 @@
     },
     "5.3": {
       "moodle": "5.3.0",
-      "sha256": "",
+      "sha256": "7e5edf110555956571f40e42acffde0eb23681ebebd212a2fec0fe7d795dd511",
       "php": "8.4",
-      "lts": true,
-      "pending": true,
-      "promote_latest": true
+      "lts": true
     }
   },
-  "latest": "5.2",
+  "latest": "5.3",
   "lts": "5.3"
 }
