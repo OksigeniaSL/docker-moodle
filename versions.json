@@ -5,14 +5,14 @@
   },
   "branches": {
     "4.5": {
-      "moodle": "4.5.14",
-      "sha256": "b8da2dd90a29b88980d2c5ef6bf90bdfca200c366fdbc4e50f3d29d0dcbcb6cf",
+      "moodle": "4.5.15",
+      "sha256": "f0e09f636c2900806bf208dffdc462f3b6b0ad24163559e9aa9b4f339ddc2096",
       "php": "8.3",
       "lts": true
     },
     "5.2": {
-      "moodle": "5.2.3",
-      "sha256": "918c4bed6639056d1a3fcca37747ad95c4ec988024d2ef6b662897bcee55a581",
+      "moodle": "5.2.4",
+      "sha256": "8569b63f1e97416ecb67ec75767dd20675892c7a62a5e90d1647366fddf873cf",
       "php": "8.4",
       "lts": false
     },
