@@ -142,6 +142,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 Constrúyela desde tu Compose con `build: .` en lugar de `image:`. La salida SVG del filtro TeX usa `dvisvgm`; las salidas PNG y GIF necesitan además ImageMagick (añade `imagemagick`).
 
+Si la construcción no llega a los servidores de paquetes (apt, o pecl si construyes esta misma imagen) y el host sí, lo habitual es que el IPv6 de Docker esté roto en ese host. Construye con `docker build --network host`, o con `network: host` dentro de `build:` en Compose.
+
 Dos cosas sobre el filtro de notación TeX:
 - **Desde Moodle 5.3 hace falta LaTeX.** El filtro recurría al mimetex incluido cuando LaTeX faltaba o fallaba, y Moodle 5.3 ya no trae mimetex.
 - **Los textos con tildes necesitan UTF-8.** El preámbulo LaTeX por defecto de Moodle empieza con `\usepackage[latin1]{inputenc}`, y con él fallan las fórmulas que llevan tildes o eñes dentro de `\text{}`. Cámbialo por `\usepackage[utf8]{inputenc}` en *Administración del sitio → Extensiones → Filtros → Notación TeX*.

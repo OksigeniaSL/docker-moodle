@@ -21,6 +21,7 @@ services:
       MOODLE_DB_PASSWORD: moodle-test
       MOODLE_ADMIN_PASSWORD: Admin-test-1
       MOODLE_CRON_INTERVAL: "20"
+      MOODLE_EXTRA_LANGS: ${MOODLE_EXTRA_LANGS:-}
     volumes:
       - moodle:/var/www/moodle
       - moodledata:/var/www/moodledata

@@ -140,6 +140,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 Build it from your Compose file with `build: .` instead of `image:`. The TeX filter's SVG output uses `dvisvgm`; its PNG and GIF outputs also need ImageMagick (add `imagemagick`).
 
+If the build cannot reach the package servers (apt, or pecl when building this image itself) while the host can, Docker's IPv6 is often broken on that host. Build with `docker build --network host`, or `network: host` under `build:` in Compose.
+
 Two things about the TeX notation filter:
 - **LaTeX is required from Moodle 5.3.** The filter used to fall back to the bundled mimetex when LaTeX was missing or failed; Moodle 5.3 no longer ships mimetex.
 - **Accented text needs UTF-8.** Moodle's default LaTeX preamble starts with `\usepackage[latin1]{inputenc}`, and formulas with accented letters inside `\text{}` fail with it. Change it to `\usepackage[utf8]{inputenc}` in *Site administration → Plugins → Filters → TeX notation*.

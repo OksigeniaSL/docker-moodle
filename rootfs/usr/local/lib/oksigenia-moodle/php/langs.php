@@ -22,6 +22,10 @@ try {
     cli_problem('Language packs: ' . $e->getMessage());
     exit(1);
 }
+// Moodle keeps its list of installed languages and their strings in caches,
+// and the controller does not reset them (the admin page does). Until they
+// are reset, Moodle rejects the new language in web service calls.
+get_string_manager()->reset_caches();
 foreach ($controller->info as $msg) {
     mtrace('[moodle] ' . strip_tags($msg));
 }

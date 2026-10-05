@@ -186,6 +186,16 @@ case "${SCENARIO}" in
         owner="$(compose exec -T moodle stat -c %U /var/www/moodledata/cache/oksitest/by-root)"
         [ "${owner}" = www-data ] || fail "root-owned cache file still belongs to ${owner}"
         echo "root-owned cache file now belongs to www-data"
+        log "A language pack added to a site in use is usable at once (MOODLE_EXTRA_LANGS=es)"
+        # A site in use has its language list cached already.
+        # shellcheck disable=SC2016 # PHP code, expanded by PHP
+        moodle_eval 'get_string_manager()->get_list_of_translations();' >/dev/null
+        MOODLE_EXTRA_LANGS=es compose up -d moodle
+        wait_healthy
+        # shellcheck disable=SC2016 # PHP code, expanded by PHP
+        langs="$(moodle_eval 'echo implode(",", array_keys(get_string_manager()->get_list_of_translations()));')"
+        [[ ",${langs}," == *",es,"* ]] || fail "Moodle does not list the new language pack: ${langs}"
+        echo "Moodle lists the languages: ${langs}"
         ;;
 
     bitnami-fresh)
