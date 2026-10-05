@@ -26,7 +26,10 @@ RUN test -n "${MOODLE_VERSION}" && test -n "${MOODLE_SHA256}"; \
     # Official packages live under stableXYZ, e.g. 5.2.3 -> stable502.
     major="${MOODLE_VERSION%%.*}"; rest="${MOODLE_VERSION#*.}"; minor="${rest%%.*}"; \
     stable="stable${major}$(printf '%02d' "${minor}")"; \
-    url="${MOODLE_TGZ_URL:-https://download.moodle.org/download.php/direct/${stable}/moodle-${MOODLE_VERSION}.tgz}"; \
+    # The first release of a branch is packaged without ".0": 5.3.0 -> moodle-5.3.tgz.
+    file="moodle-${MOODLE_VERSION}"; \
+    if [[ "${MOODLE_VERSION}" =~ ^[0-9]+\.[0-9]+\.0$ ]]; then file="moodle-${MOODLE_VERSION%.0}"; fi; \
+    url="${MOODLE_TGZ_URL:-https://download.moodle.org/download.php/direct/${stable}/${file}.tgz}"; \
     curl -fsSL --retry 5 -o /tmp/moodle.tgz "${url}"; \
     echo "${MOODLE_SHA256}  /tmp/moodle.tgz" | sha256sum -c -; \
     mkdir -p /usr/src/moodle; \
