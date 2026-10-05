@@ -35,11 +35,11 @@ Open `MOODLE_URL` and log in as `admin` with `MOODLE_ADMIN_PASSWORD`. If you lea
 
 | Moodle | Tags | PHP | Security fixes until |
 |---|---|---|---|
-| 5.2 | `5.2`, `5`, `latest` | 8.4 | October 2027 |
+| 5.3 LTS | `5.3`, `5`, `latest`, `lts` | 8.4 | October 2029 |
+| 5.2 | `5.2` | 8.4 | October 2027 |
 | 4.5 LTS | `4.5`, `4` | 8.3 | October 2027 |
-| 5.3 LTS | `5.3`, and then `5`, `latest` and `lts` | 8.4 | October 2029 |
 
-Moodle 5.3 is published here on the day Moodle releases it, planned for 5 October 2026. Until then, `latest` points to 5.2 and there is no `lts` tag, so that nobody moves from 4.5 to 5.3 by accident.
+`latest` and `5` follow the newest branch: since 5 October 2026 they point to 5.3. To stay on a branch, use its own tag, such as `5.2` or `4.5`.
 
 - **Exact version:** each branch also has a tag with the exact Moodle version (e.g. `5.2.3`), which moves with every rebuild.
 - **Immutable build:** `5.2.3-r1`, `5.2.3-r2`… never move. Pin one of these in production if you want to decide when to update.

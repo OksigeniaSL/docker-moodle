@@ -37,11 +37,11 @@ Abre `MOODLE_URL` y entra como `admin` con `MOODLE_ADMIN_PASSWORD`. Si no indica
 
 | Moodle | Etiquetas | PHP | Seguridad hasta |
 |---|---|---|---|
-| 5.2 | `5.2`, `5`, `latest` | 8.4 | octubre de 2027 |
+| 5.3 LTS | `5.3`, `5`, `latest`, `lts` | 8.4 | octubre de 2029 |
+| 5.2 | `5.2` | 8.4 | octubre de 2027 |
 | 4.5 LTS | `4.5`, `4` | 8.3 | octubre de 2027 |
-| 5.3 LTS | `5.3`, y después `5`, `latest` y `lts` | 8.4 | octubre de 2029 |
 
-Moodle 5.3 se publica aquí el mismo día que la publique Moodle, previsto para el 5 de octubre de 2026. Hasta entonces, `latest` apunta a la 5.2 y no hay etiqueta `lts`, para que nadie pase de la 4.5 a la 5.3 sin querer.
+`latest` y `5` siguen a la rama más nueva: desde el 5 de octubre de 2026 apuntan a la 5.3. Para quedarte en una rama, usa su etiqueta propia, como `5.2` o `4.5`.
 
 - **Versión exacta:** cada rama tiene también una etiqueta con la versión exacta de Moodle (por ejemplo `5.2.3`), que se mueve con cada reconstrucción.
 - **Compilación inmutable:** `5.2.3-r1`, `5.2.3-r2`… no se mueven nunca. Fija una de estas en producción si quieres decidir tú cuándo actualizar.
