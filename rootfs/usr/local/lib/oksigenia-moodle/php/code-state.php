@@ -60,6 +60,11 @@ if ($old === null) {
     exit(0);
 }
 $cmp = bccomp_versions($old['version'], $new['version']);
+// A new branch can start at the version of the previous branch's last
+// release: main as 6.0dev and 5.3.0 are both 2026100500.00 at first.
+if ($cmp === 0) {
+    $cmp = (int) $old['branch'] <=> (int) $new['branch'];
+}
 if ($cmp === 0) {
     echo "same {$old['release']}\n";
 } else if ($cmp > 0) {

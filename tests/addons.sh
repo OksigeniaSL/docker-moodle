@@ -1,6 +1,7 @@
 #!/bin/bash
-# Which plugins addons.php carries over to a new Moodle tree, on small
-# synthetic trees. Runs inside the image: tests/run.sh addons.
+# Which plugins addons.php carries over to a new Moodle tree, and how
+# code-state.php compares two trees, on small synthetic trees. Runs inside
+# the image: tests/run.sh addons.
 
 # shellcheck disable=SC2016 # PHP code in single quotes, written as is
 set -euo pipefail
@@ -71,5 +72,21 @@ plugin "${new}/public/mod/chat" 2024110500
 check "image ships the same version: image copy used" "${work}/old45" "local_extra mod_legacy mod_survey " ""
 plugin "${new}/public/mod/survey" 2024110400
 check "old tree newer than the image's copy: old copy kept" "${work}/old52" "mod_survey " ""
+
+# A new branch can start at the last release's version: main as 6.0dev and
+# 5.3.0 were both 2026100500.00. The branch decides.
+version_file() { mkdir -p "$1/public"; printf '<?php\n$version = %s;\n$release = %s;\n$branch = %s;\n$maturity = MATURITY_%s;\n' "$2" "'$3'" "'$4'" "$5" > "$1/public/version.php"; }
+version_file "${work}/v53" 2026100500.00 '5.3 (Build: 20261005)' 503 STABLE
+version_file "${work}/main" 2026100500.00 '6.0dev (Build: 20261005)' 600 ALPHA
+for case in "v53 main upgrade" "main v53 downgrade" "v53 v53 same"; do
+    read -r from to want <<< "${case}"
+    got="$(php /usr/local/lib/oksigenia-moodle/php/code-state.php "${work}/${from}" "${work}/${to}" | cut -d' ' -f1)"
+    if [ "${got}" = "${want}" ]; then
+        echo "ok: ${from} -> ${to} is ${want}"
+    else
+        echo "FAIL: ${from} -> ${to} is ${got}, want ${want}"
+        failed=1
+    fi
+done
 
 exit "${failed}"
