@@ -25,7 +25,7 @@ Si `www-data` no puede escribir en `/bitnami/moodledata`, la imagen le da la pro
 | Tienes | Pasa a | Notas |
 |---|---|---|
 | 4.5.x | `oksigenia/moodle:4.5` | Misma rama: una actualización menor, el paso más seguro. |
-| 5.0.x | `oksigenia/moodle:5.2` o `:5.3` | Moodle 5.0 dejó de recibir parches de seguridad el 5 de octubre de 2026. |
+| 5.0.x | `oksigenia/moodle:5.3` | Moodle 5.0 dejó de recibir parches de seguridad el 5 de octubre de 2026. La 5.3 es LTS, con parches de seguridad hasta octubre de 2029; la 5.2 los tiene hasta octubre de 2027. Elige `:5.2` solo si un plugin que necesitas aún no soporta la 5.3. |
 | 4.4.x o una 4.x anterior | primero `oksigenia/moodle:4.5` | Moodle 5.2 y posteriores necesitan al menos la 4.4; pasar por la 4.5 es el camino probado. |
 
 Moodle 5.3 también retira del núcleo el tema Classic. Al actualizar lo desinstala y reinicia todas las selecciones de ese tema en cursos, categorías, cohortes y usuarios, salvo que antes instales Classic aparte. La imagen se detiene antes de actualizar si el sitio usa Classic; con `MOODLE_ALLOW_REMOVED_PLUGINS=yes`, sigue adelante.
@@ -60,7 +60,7 @@ Moodle actualiza entonces el Chat como un plugin más y conserva sus actividades
    ```diff
       moodle:
    -    image: bitnamilegacy/moodle:5.0.2
-   +    image: oksigenia/moodle:5.2
+   +    image: oksigenia/moodle:5.3
    ```
 
    Deja todo lo demás igual: las variables (`MOODLE_DATABASE_HOST`, `MOODLE_USERNAME`…), los volúmenes en `/bitnami/moodle` y `/bitnami/moodledata`, y los puertos.
