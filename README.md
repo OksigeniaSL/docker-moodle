@@ -215,7 +215,7 @@ The image includes [Oksigenia Access](https://github.com/OksigeniaSL/moodle-loca
 
 - **Turning it on:** with `on`, the plugin is installed and enabled, and the image keeps it updated.
 - **Turning it off:** setting `off` later disables it without removing its settings.
-- **Settings:** in *Site administration → Plugins → Local plugins → Oksigenia Access*.
+- **Settings:** in *Site administration → Plugins → Local plugins → Accessibility panel (Oksigenia Access)*.
 
 ## Security
 

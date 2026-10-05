@@ -227,7 +227,7 @@ La imagen incluye [Oksigenia Access](https://github.com/OksigeniaSL/moodle-local
 
 - **Activarlo:** con `on`, el plugin se instala y se activa, y la imagen lo mantiene actualizado.
 - **Desactivarlo:** poner `off` más tarde lo desactiva sin borrar sus ajustes.
-- **Ajustes:** en *Administración del sitio → Extensiones → Extensiones locales → Oksigenia Access*.
+- **Ajustes:** en *Administración del sitio → Extensiones → Extensiones locales → Panel de accesibilidad (Oksigenia Access)*.
 
 ## Seguridad
 
