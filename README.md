@@ -206,7 +206,7 @@ The image recognises the `/bitnami/moodle` and `/bitnami/moodledata` volumes, re
 
 ## Oksigenia Access
 
-The image includes [Oksigenia Access](https://github.com/OksigeniaSL/moodle-local_oksigeniaaccess), an accessibility panel for Moodle. It covers 17 controls (text size, contrast, dyslexia-friendly font, reading guide…), 4 one-click profiles and 8 languages. **It is not installed unless you ask for it:**
+The image includes [Oksigenia Access](https://github.com/OksigeniaSL/moodle-local_oksigeniaaccess), an accessibility panel for Moodle. It covers 17 controls (text size, contrast, dyslexia-friendly font, reading guide…), 4 one-click profiles and 8 languages, and signed-in users find their settings on any device. **It is not installed unless you ask for it:**
 
 ```yaml
     environment:

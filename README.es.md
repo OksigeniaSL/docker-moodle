@@ -218,7 +218,7 @@ Los nombres de variables de Bitnami siguen funcionando, y los logs sugieren los 
 
 ## Oksigenia Access
 
-La imagen incluye [Oksigenia Access](https://github.com/OksigeniaSL/moodle-local_oksigeniaaccess), un panel de accesibilidad para Moodle. Tiene 17 controles (tamaño de texto, contraste, tipografía para dislexia, guía de lectura…), 4 perfiles de un clic y 8 idiomas. **No se instala si no lo pides:**
+La imagen incluye [Oksigenia Access](https://github.com/OksigeniaSL/moodle-local_oksigeniaaccess), un panel de accesibilidad para Moodle. Tiene 17 controles (tamaño de texto, contraste, tipografía para dislexia, guía de lectura…), 4 perfiles de un clic y 8 idiomas, y quien entra con su cuenta encuentra sus ajustes en cualquier dispositivo. **No se instala si no lo pides:**
 
 ```yaml
     environment:
