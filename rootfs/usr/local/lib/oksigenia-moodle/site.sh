@@ -192,6 +192,19 @@ restore_maintenance_state() {
     rm -f "${file}"
 }
 
+# Moodle's CLI upgrade refuses code that is not marked stable unless told
+# otherwise. Released images always are; code from Moodle's main branch
+# (6.0dev, MATURITY_ALPHA) is a build someone chose on purpose.
+run_moodle_upgrade() {
+    local versionfile="${MOODLE_CODE_DIR}/version.php" unstable=()
+    [ -f "${MOODLE_CODE_DIR}/public/version.php" ] && versionfile="${MOODLE_CODE_DIR}/public/version.php"
+    if ! grep -qE '^\$maturity *= *MATURITY_STABLE *;' "${versionfile}"; then
+        log "This Moodle is not marked as stable ($(sed -n 's/^\$maturity *= *\([A-Z_]*\).*/\1/p' "${versionfile}")); upgrading with --allow-unstable"
+        unstable=(--allow-unstable)
+    fi
+    moodle_php admin/cli/upgrade.php --non-interactive "${unstable[@]}"
+}
+
 upgrade_site() {
     local rc=0 out
     out="$(moodle_php admin/cli/upgrade.php --is-pending 2>&1)" || rc=$?
@@ -217,7 +230,7 @@ upgrade_site() {
     log "Upgrading the Moodle database"
     save_maintenance_state
     moodle_php admin/cli/maintenance.php --enable >/dev/null || true
-    if ! moodle_php admin/cli/upgrade.php --non-interactive; then
+    if ! run_moodle_upgrade; then
         printf 'when: %s\nimage: Moodle %s\nbackups: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             "$(cat "${IMAGE_CODE}/.oksigenia-image-version")" "${OKS_BACKUP_DIR:-${OKS_DATA_STATE}/backups}" \
             > "${OKS_DATA_STATE}/${UPGRADE_FAILED_MARKER_NAME}"
@@ -245,7 +258,7 @@ remove_deleted_standard_plugins() {
         || { warn "could not uninstall ${plugins}; uninstall them from Site administration > Plugins"; return 0; }
     moodle_php admin/cli/upgrade.php --is-pending >/dev/null 2>&1 || rc=$?
     if [ "${rc}" = 2 ]; then
-        moodle_php admin/cli/upgrade.php --non-interactive >/dev/null \
+        run_moodle_upgrade >/dev/null \
             || warn "Moodle's upgrade after uninstalling ${plugins} failed; run: moodle-cli upgrade"
     fi
 }
@@ -264,8 +277,20 @@ sync_langs() {
 }
 
 sync_redis_cache() {
-    [ -n "${MOODLE_REDIS_HOST:-}" ] || return 0
-    local stamp="${OKS_DATA_STATE}/redis" wanted="${MOODLE_REDIS_HOST}:${MOODLE_REDIS_PORT:-6379}"
+    local stamp="${OKS_DATA_STATE}/redis" wanted
+    if [ -z "${MOODLE_REDIS_HOST:-}" ]; then
+        # Redis was used before and is not any more: Moodle's application
+        # cache would still point at it.
+        [ -f "${stamp}" ] || return 0
+        if moodle_php "${OKS_PHP}/redis-cache.php" "${MOODLE_CODE_DIR}" remove; then
+            rm -f "${stamp}"
+        else
+            warn "could not move the application cache off Redis; retrying at the next start"
+        fi
+        return 0
+    fi
+    # The password counts too (as a hash), so that changing it updates the store.
+    wanted="${MOODLE_REDIS_HOST}:${MOODLE_REDIS_PORT:-6379}:$(printf '%s' "${MOODLE_REDIS_PASSWORD:-}" | sha256sum | cut -c1-16)"
     [ "$(cat "${stamp}" 2>/dev/null)" = "${wanted}" ] && return 0
     if moodle_php "${OKS_PHP}/redis-cache.php" "${MOODLE_CODE_DIR}"; then
         echo "${wanted}" > "${stamp}"
