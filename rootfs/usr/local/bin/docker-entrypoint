@@ -78,6 +78,7 @@ clear_failed_upgrade_flag
 apply_code_update
 sync_access
 write_managed_config
+protect_config
 
 if [ "${OKS_DB_STATE}" = empty ]; then
     [ "${OKS_CONFIG}" = native ] || die "config.php points to an empty database; refusing to install over it"

@@ -37,6 +37,17 @@ prepare_config() {
     fi
 }
 
+# Moodle's security checks warn when PHP can write config.php. The image
+# rewrites it by renaming a new file into place, so read-only is enough.
+# Moodle 5.1+ also ships public/config.php, which only loads the real one,
+# and a code update brings it back writable: run after it.
+protect_config() {
+    chmod 0440 "${MOODLE_CODE_DIR}/config.php" 2>/dev/null || true
+    if [ -f "${MOODLE_CODE_DIR}/public/config.php" ]; then
+        chmod 0444 "${MOODLE_CODE_DIR}/public/config.php" 2>/dev/null || true
+    fi
+}
+
 write_managed_config() {
     OKS_LAYOUT="${OKS_CONFIG}" php "${OKS_PHP}/write-config.php" managed "${MANAGED_CONFIG}" \
         || die "cannot write ${MANAGED_CONFIG}"

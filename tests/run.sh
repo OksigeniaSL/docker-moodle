@@ -139,6 +139,18 @@ expect_router() {
     esac
 }
 
+# Moodle's own check that PHP cannot write config.php.
+expect_config_readonly() {
+    local result
+    # shellcheck disable=SC2016 # PHP code, expanded by PHP
+    result="$(moodle_eval 'foreach (["\\core\\check\\environment\\configrw", "\\core\\check\\security\\configrw"] as $c) {
+        if (class_exists($c)) { echo (new $c())->get_result()->get_status(); exit; } } echo "n/a";')"
+    case "${result}" in
+        ok|n/a) echo "config.php not writable by PHP: ${result}" ;;
+        *) fail "Moodle's check says PHP can write config.php (${result})" ;;
+    esac
+}
+
 expect_nonroot() {
     local users
     users="$(compose exec -T moodle ps -eo user=,comm= | awk '$2 ~ /apache2|php/ {print $1}' | sort -u | tr '\n' ' ')"
@@ -156,6 +168,7 @@ basic_checks() {
     [ "$(http_body /_oksigenia/health)" = OK ] || fail "health endpoint is not OK"
     expect_router
     expect_nonroot
+    expect_config_readonly
     expect_cron
     echo "Moodle $(moodle_release)"
 }
