@@ -39,13 +39,13 @@ docker compose exec -u www-data moodle sh -c 'cd "$(mktemp -d)" &&
 docker compose restart moodle
 ```
 
-Moodle then upgrades Chat as an add-on and keeps its activities, and later image updates carry it over like any other add-on. For Survey, replace `chat` with `survey`. The image does not carry Atto over; if you want it back, install it from [moodle.org/plugins](https://moodle.org/plugins).
+Moodle then upgrades Chat as an add-on and keeps its activities, and later image updates carry it over like any other add-on. For Survey, replace `chat` with `survey`. The image does not carry Atto over; if you want it back, install the separate release that Moodle HQ publishes, [moodle-editor_atto](https://github.com/moodlehq/moodle-editor_atto).
 
 ## Steps
 
 1. **Back up.** The image does it too, but keep your own copy of the database and the two volumes before any upgrade.
 
-2. **Check your add-ons.** Make sure each one has a release for the Moodle version you move to (on moodle.org/plugins). An add-on that does not support the new version may break pages after the upgrade, sometimes only in the browser. For example, Moodle 5.2 removed the JavaScript modules `core/modal_factory` and `core/modal_registry` (MDL-79182), so add-ons that still use them lose their pop-up windows without any error on the server.
+2. **Check your add-ons.** Make sure each one has a release for the Moodle version you move to (in the [Moodle Marketplace](https://marketplace.moodle.com/)). An add-on that does not support the new version may break pages after the upgrade, sometimes only in the browser. For example, Moodle 5.2 removed the JavaScript modules `core/modal_factory` and `core/modal_registry` (MDL-79182), so add-ons that still use them lose their pop-up windows without any error on the server.
 
 3. **Close the site, if people use it.** In the Bitnami container:
 

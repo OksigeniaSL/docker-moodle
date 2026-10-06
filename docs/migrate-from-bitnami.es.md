@@ -39,13 +39,13 @@ docker compose exec -u www-data moodle sh -c 'cd "$(mktemp -d)" &&
 docker compose restart moodle
 ```
 
-Moodle actualiza entonces el Chat como un plugin más y conserva sus actividades, y las siguientes actualizaciones de la imagen lo mantienen como a cualquier otro plugin. Para la Encuesta, cambia `chat` por `survey`. La imagen no conserva Atto; si lo quieres, instálalo desde [moodle.org/plugins](https://moodle.org/plugins).
+Moodle actualiza entonces el Chat como un plugin más y conserva sus actividades, y las siguientes actualizaciones de la imagen lo mantienen como a cualquier otro plugin. Para la Encuesta, cambia `chat` por `survey`. La imagen no conserva Atto; si lo quieres, instala la versión aparte que publica Moodle HQ, [moodle-editor_atto](https://github.com/moodlehq/moodle-editor_atto).
 
 ## Pasos
 
 1. **Haz copia.** La imagen también la hace, pero guarda tu propia copia de la base de datos y de los dos volúmenes antes de cualquier actualización.
 
-2. **Revisa tus plugins.** Comprueba en moodle.org/plugins que cada uno tiene versión para el Moodle al que vas. Un plugin que no soporta la versión nueva puede romper páginas tras la actualización, a veces solo en el navegador. Por ejemplo, Moodle 5.2 eliminó los módulos JavaScript `core/modal_factory` y `core/modal_registry` (MDL-79182), y los plugins que aún los usan pierden sus ventanas emergentes sin que el servidor dé ningún error.
+2. **Revisa tus plugins.** Comprueba en el [Moodle Marketplace](https://marketplace.moodle.com/) que cada uno tiene versión para el Moodle al que vas. Un plugin que no soporta la versión nueva puede romper páginas tras la actualización, a veces solo en el navegador. Por ejemplo, Moodle 5.2 eliminó los módulos JavaScript `core/modal_factory` y `core/modal_registry` (MDL-79182), y los plugins que aún los usan pierden sus ventanas emergentes sin que el servidor dé ningún error.
 
 3. **Cierra el sitio, si alguien lo está usando.** En el contenedor de Bitnami:
 
