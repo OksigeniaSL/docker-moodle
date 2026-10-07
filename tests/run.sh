@@ -270,6 +270,21 @@ case "${SCENARIO}" in
         wait_healthy
         [ -n "$(plugin_version local_oksigeniaaccess)" ] || fail "Access is not installed"
         page_has "${page}" '<oksigenia-access-panel' || fail "Access panel not rendered"
+        log "A newer Access already installed is kept, never downgraded"
+        # As on a site that got a newer Access from a newer image, then runs an older one.
+        dir="$(compose exec -T moodle sh -c 'test -d /var/www/moodle/public && echo /var/www/moodle/public || echo /var/www/moodle')"
+        # shellcheck disable=SC2016 # a sed expression, not shell
+        compose exec -T -u www-data moodle sed -i \
+            -e 's/^\([[:space:]]*\$plugin->version[[:space:]]*=[[:space:]]*\)[0-9.]*;/\12099010100;/' \
+            -e "s/^\([[:space:]]*\$plugin->release[[:space:]]*=[[:space:]]*\)'[^']*'/\1'9.9.9'/" \
+            "${dir}/local/oksigeniaaccess/version.php"
+        cli upgrade --non-interactive >/dev/null
+        [ "$(plugin_version local_oksigeniaaccess)" = 2099010100 ] || fail "the newer Access was not installed"
+        OKSIGENIA_ACCESS=on compose up -d --force-recreate moodle
+        wait_healthy
+        [ "$(plugin_version local_oksigeniaaccess)" = 2099010100 ] || fail "Access was downgraded"
+        log_has 'Keeping the installed Oksigenia Access' || fail "the image did not say it kept the newer Access"
+        echo "a newer Access is kept"
         log "OKSIGENIA_ACCESS=off again disables it without uninstalling"
         OKSIGENIA_ACCESS=off compose up -d moodle
         wait_healthy

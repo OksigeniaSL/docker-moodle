@@ -295,19 +295,34 @@ apply_code_update() {
     log "Moodle code updated; the database upgrade follows"
 }
 
-# The Access plugin is copied into the code tree only when enabled.
+# $plugin->version and $plugin->release of a plugin directory, empty if absent
+# (without failing: callers run under set -e and pipefail).
+plugin_version_of() {
+    sed -n 's/^[[:space:]]*\$plugin->version[[:space:]]*=[[:space:]]*\([0-9.]*\).*/\1/p' "$1/version.php" 2>/dev/null | head -n 1 || true
+}
+plugin_release_of() {
+    sed -n "s/^[[:space:]]*\\\$plugin->release[[:space:]]*=[[:space:]]*'\([^']*\)'.*/\1/p" "$1/version.php" 2>/dev/null | head -n 1 || true
+}
+
+# The Access plugin is copied into the code tree only when enabled, and only
+# to install it or to move it to a newer version. Moodle refuses to go back
+# to an older one (cannotdowngrade), so a newer copy already there, from a
+# newer image or installed by hand, is kept.
 sync_access() {
     OKS_ACCESS_PRESENT=no
     if is_on "${OKSIGENIA_ACCESS}"; then
-        local have want
-        want="$(cat "${IMAGE_ACCESS}/.oksigenia-image-version")"
-        have="$(sed -n "s/.*->release *= *'\([^']*\)'.*/\1/p" "${OKS_ACCESS_DIR}/version.php" 2>/dev/null || true)"
-        if [ "${have}" != "${want}" ]; then
-            log "Installing Oksigenia Access ${want}"
+        local have want release
+        want="$(plugin_version_of "${IMAGE_ACCESS}")"
+        have="$(plugin_version_of "${OKS_ACCESS_DIR}")"
+        release="$(cat "${IMAGE_ACCESS}/.oksigenia-image-version")"
+        if [ -z "${have}" ] || awk -v a="${want}" -v b="${have}" 'BEGIN { exit !(a + 0 > b + 0) }'; then
+            log "Installing Oksigenia Access ${release}"
             rm -rf "${OKS_ACCESS_DIR}"
             mkdir -p "$(dirname "${OKS_ACCESS_DIR}")"
             cp -a "${IMAGE_ACCESS}" "${OKS_ACCESS_DIR}"
             rm -f "${OKS_ACCESS_DIR}/.oksigenia-image-version"
+        elif [ "${have}" != "${want}" ]; then
+            log "Keeping the installed Oksigenia Access $(plugin_release_of "${OKS_ACCESS_DIR}") (${have}): it is newer than the image's ${release} (${want})"
         fi
     fi
     [ -f "${OKS_ACCESS_DIR}/version.php" ] && OKS_ACCESS_PRESENT=yes
