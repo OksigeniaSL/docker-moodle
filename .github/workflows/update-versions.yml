@@ -49,7 +49,7 @@ jobs:
             echo "A pull request for ${SUMMARY} is already open"; exit 0
           fi
           git config user.name "Oksigenia SL"
-          git config user.email "dev@oksigenia.com"
+          git config user.email "dev@oksigenia.cc"
           git switch -c "${branch}"
           git commit -am "Update to ${SUMMARY}"
           git push --force origin "${branch}"
