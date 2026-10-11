@@ -26,7 +26,8 @@ If `www-data` cannot write to `/bitnami/moodledata`, the image gives it ownershi
 |---|---|---|
 | 4.5.x | `oksigenia/moodle:4.5` | Same branch: a patch-level update, the safest step. |
 | 5.0.x | `oksigenia/moodle:5.3` | Moodle 5.0 stopped receiving security fixes on 5 October 2026. 5.3 is an LTS, with security fixes until October 2029; 5.2 has them until October 2027. Choose `:5.2` only if an add-on you need does not support 5.3 yet. |
-| 4.4.x or older 4.x | `oksigenia/moodle:4.5` first | Moodle 5.2 and later need at least 4.4; going through 4.5 is the tested path. |
+| 4.1.2 to 4.4.x | `oksigenia/moodle:4.5` first | Moodle 5.2 and later need at least 4.4; going through 4.5 is the tested path (from Bitnami 4.1.15 and 4.4.4). |
+| 4.0.x or older | 4.1 first | Moodle 4.5 needs 4.1.2 or later. |
 
 Moodle 5.3 also removes the Classic theme from core: during the upgrade it uninstalls Classic and resets every course, category, cohort and user selection of it, unless you install Classic separately first. The image stops before upgrading if the site uses Classic (`MOODLE_ALLOW_REMOVED_PLUGINS=yes` lets it go ahead).
 

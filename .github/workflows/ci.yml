@@ -94,9 +94,11 @@ jobs:
           IMAGE: moodle-test:${{ matrix.branch }}
         run: |
           if [ "${{ matrix.scenario }}" = bitnami ]; then
-            # Migrate from the newest bitnamilegacy release that this branch can upgrade.
+            # Migrate from the newest bitnamilegacy release that this branch can
+            # upgrade; on 4.5, also from the oldest (4.1, Bitnami's last LTS).
             case "${{ matrix.branch }}" in
-              4.5) export BITNAMI_IMAGE=bitnamilegacy/moodle:4.5.4 ;;
+              4.5) BITNAMI_IMAGE=bitnamilegacy/moodle:4.1.15 tests/run.sh bitnami
+                   export BITNAMI_IMAGE=bitnamilegacy/moodle:4.5.4 ;;
               *)   export BITNAMI_IMAGE=bitnamilegacy/moodle:5.0.2 ;;
             esac
           fi

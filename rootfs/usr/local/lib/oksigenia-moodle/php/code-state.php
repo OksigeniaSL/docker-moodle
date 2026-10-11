@@ -34,6 +34,13 @@ function major_minor(string $release): string {
     return preg_match('/^(\d+)\.(\d+)/', $release, $m) ? "$m[1].$m[2]" : '';
 }
 
+// "4.1.15+ (Build: 20241209)" -> "4.1.15", "5.3 (Build: 20261005)" -> "5.3.0".
+// The upgrade requirement names a point release (4.1.2), so the whole
+// number counts: 4.1.15 meets it, 4.1.1 does not.
+function release_number(string $release): string {
+    return preg_match('/^(\d+)\.(\d+)(?:\.(\d+))?/', $release, $m) ? "$m[1].$m[2]." . ($m[3] ?? '0') : '';
+}
+
 // Minimum version Moodle accepts as a starting point for an upgrade,
 // from the image's own environment.xml.
 function upgrade_requires(string $dir, string $target): ?string {
@@ -71,7 +78,7 @@ if ($cmp === 0) {
     echo "downgrade {$old['release']} > {$new['release']}\n";
 } else {
     $requires = upgrade_requires($image, major_minor($new['release']));
-    if ($requires !== null && version_compare(major_minor($old['release']), $requires, '<')) {
+    if ($requires !== null && version_compare(release_number($old['release']), release_number($requires), '<')) {
         echo "unsupported {$old['release']} -> {$new['release']} (Moodle needs {$requires} or later first)\n";
     } else {
         echo "upgrade {$old['release']} -> {$new['release']}\n";

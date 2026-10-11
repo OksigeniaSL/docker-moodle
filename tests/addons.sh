@@ -78,7 +78,16 @@ check "old tree newer than the image's copy: old copy kept" "${work}/old52" "mod
 version_file() { mkdir -p "$1/public"; printf '<?php\n$version = %s;\n$release = %s;\n$branch = %s;\n$maturity = MATURITY_%s;\n' "$2" "'$3'" "'$4'" "$5" > "$1/public/version.php"; }
 version_file "${work}/v53" 2026100500.00 '5.3 (Build: 20261005)' 503 STABLE
 version_file "${work}/main" 2026100500.00 '6.0dev (Build: 20261005)' 600 ALPHA
-for case in "v53 main upgrade" "main v53 downgrade" "v53 v53 same"; do
+# The upgrade requirement is a point release: Moodle 4.5 upgrades from
+# 4.1.2 on, so 4.1.15 (Bitnami's last 4.1) can go and 4.1.1 cannot.
+version_file "${work}/v45" 2024100715.00 '4.5.15 (Build: 20261005)' 405 STABLE
+mkdir -p "${work}/v45/public/admin"
+echo '<COMPATIBILITY_MATRIX><MOODLE version="4.5" requires="4.1.2"/></COMPATIBILITY_MATRIX>' > "${work}/v45/public/admin/environment.xml"
+version_file "${work}/v4115" 2022112815.00 '4.1.15 (Build: 20241209)' 401 STABLE
+version_file "${work}/v4101" 2022112801.00 '4.1.1 (Build: 20230116)' 401 STABLE
+version_file "${work}/v40" 2022041911.00 '4.0.11 (Build: 20231009)' 400 STABLE
+for case in "v53 main upgrade" "main v53 downgrade" "v53 v53 same" \
+        "v4115 v45 upgrade" "v4101 v45 unsupported" "v40 v45 unsupported"; do
     read -r from to want <<< "${case}"
     got="$(php /usr/local/lib/oksigenia-moodle/php/code-state.php "${work}/${from}" "${work}/${to}" | cut -d' ' -f1)"
     if [ "${got}" = "${want}" ]; then
