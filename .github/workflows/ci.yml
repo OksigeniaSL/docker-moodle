@@ -23,15 +23,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: ShellCheck
         run: |
-          docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:stable -x -P SCRIPTDIR \
+          docker run --rm -v "$PWD:/mnt:ro" -w /mnt "$(.github/scripts/tool-image.sh shellcheck)" -x -P SCRIPTDIR \
             rootfs/usr/local/bin/docker-entrypoint rootfs/usr/local/bin/moodle-cli \
             rootfs/usr/local/bin/moodle-healthcheck rootfs/usr/local/lib/oksigenia-moodle/run.sh \
             tests/run.sh tests/addons.sh .github/scripts/*.sh
       - name: Hadolint
-        run: docker run --rm -v "$PWD:/mnt:ro" -w /mnt hadolint/hadolint:latest hadolint --config .hadolint.yaml Dockerfile
+        run: docker run --rm -v "$PWD:/mnt:ro" -w /mnt "$(.github/scripts/tool-image.sh hadolint)" hadolint --config .hadolint.yaml Dockerfile
       - name: PHP syntax
         run: |
-          docker run --rm -v "$PWD:/mnt:ro" -w /mnt php:8.4-cli \
+          docker run --rm -v "$PWD:/mnt:ro" -w /mnt "$(.github/scripts/tool-image.sh php)" \
             sh -c 'for f in rootfs/usr/local/lib/oksigenia-moodle/php/*.php tests/fixtures/*/*.php; do php -l "$f" || exit 1; done'
       - name: versions.json
         run: jq -e '.branches | length > 0' versions.json
@@ -65,7 +65,7 @@ jobs:
           outputs: type=docker,dest=${{ runner.temp }}/image.tar
           cache-from: type=gha,scope=${{ matrix.branch }}-amd64
           cache-to: type=gha,mode=max,scope=${{ matrix.branch }}-amd64
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: image-${{ matrix.branch }}
           path: ${{ runner.temp }}/image.tar
@@ -81,7 +81,7 @@ jobs:
         scenario: [install-mariadb, install-pgsql, access, bitnami, bitnami-fresh, upgrade-failure, addons]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: image-${{ matrix.branch }}
           path: ${{ runner.temp }}
@@ -109,7 +109,7 @@ jobs:
         run: |
           echo "old=$(jq -r '[.branches | to_entries[] | select(.value.lts) | .key][0]' versions.json)" >> "$GITHUB_OUTPUT"
           echo "new=$(jq -r '.latest' versions.json)" >> "$GITHUB_OUTPUT"
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: image-*
           path: ${{ runner.temp }}/images
