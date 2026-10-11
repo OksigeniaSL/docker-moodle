@@ -1,6 +1,7 @@
 #!/bin/bash
 # Looks for new Moodle point releases on the branches in versions.json and
-# for a new Oksigenia Access release, and updates versions.json with the
+# for a new Oksigenia Access release (and, weekly, for new builds of the PHP
+# base images), and updates versions.json with the
 # version and the SHA-256: for Moodle, the one Moodle publishes (checked
 # against our own download); for Access, that of the tag's archive. Prints, in $GITHUB_OUTPUT format:
 #   changed=yes|no
@@ -102,6 +103,28 @@ if [ -n "${access_latest}" ] && [ "${access_latest}" != "${access_current}" ] \
     jq --arg a "${access_latest}" --arg s "${sha}" '.access.version = $a | .access.sha256 = $s' "${v}" > "${tmp}/v.json"
     mv "${tmp}/v.json" "${v}"
     changes+=("Oksigenia Access ${access_latest}")
+fi
+
+# PHP base images, pinned by digest in php_images: moved to the newest build
+# of their tag once a week (Mondays, UTC), or on request (BASE_UPDATE=yes).
+# The official images are rebuilt for every Debian and PHP fix.
+if [ "$(date -u +%u)" = 1 ] || [ "${BASE_UPDATE:-no}" = yes ]; then
+    token="$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/php:pull" | jq -r .token)"
+    for php in $(jq -r '[.branches[].php] | unique | .[]' "${v}"); do
+        current="$(jq -r --arg p "${php}" '.php_images[$p] // empty' "${v}")"
+        latest="$(curl -fsSI -H "Authorization: Bearer ${token}" \
+            -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+            "https://registry-1.docker.io/v2/library/php/manifests/${php}-apache-trixie" \
+            | tr -d '\r' | awk -F': ' 'tolower($1) == "docker-content-digest" { print $2 }')" || latest=""
+        if ! [[ "${latest}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "cannot read the digest of php:${php}-apache-trixie; trying again later" >&2
+            continue
+        fi
+        [ "${latest}" = "${current}" ] && continue
+        jq --arg p "${php}" --arg d "${latest}" '.php_images[$p] = $d' "${v}" > "${tmp}/v.json"
+        mv "${tmp}/v.json" "${v}"
+        changes+=("PHP ${php} base image")
+    done
 fi
 
 # A new stable branch (X.Y.0 released) newer than every branch we ship.

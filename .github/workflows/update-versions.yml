@@ -11,6 +11,11 @@ on:
     # Every 6 hours, so a Moodle release is picked up the day it ships.
     - cron: '23 */6 * * *'
   workflow_dispatch:
+    inputs:
+      base:
+        description: Also move the PHP base images to their newest build
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -36,6 +41,8 @@ jobs:
           ref: main
           fetch-depth: 0
       - id: check
+        env:
+          BASE_UPDATE: ${{ inputs.base && 'yes' || 'no' }}
         run: .github/scripts/update-versions.sh >> "$GITHUB_OUTPUT"
 
       - name: Pull request, CI and merge
@@ -54,7 +61,7 @@ jobs:
           git commit -am "Update to ${SUMMARY}"
           git push --force origin "${branch}"
           pr="$(gh pr create --base main --head "${branch}" --title "Update to ${SUMMARY}" \
-            --body "Automatic update of \`versions.json\`. Moodle packages are checked against the SHA-256 that Moodle publishes; for Oksigenia Access it is the SHA-256 of the release tag's archive. It is merged automatically when the full CI passes." \
+            --body "Automatic update of \`versions.json\`. Moodle packages are checked against the SHA-256 that Moodle publishes; for Oksigenia Access it is the SHA-256 of the release tag's archive, and PHP base images are pinned to the digest Docker Hub serves for their tag. It is merged automatically when the full CI passes." \
             | sed 's#.*/##')"
 
           # Pull requests opened with GITHUB_TOKEN start no workflows: dispatch CI and wait for it.
@@ -95,4 +102,16 @@ jobs:
           title="Moodle ${NEWBRANCH} is out: add it to versions.json"
           count="$(gh issue list --state all --search "in:title \"${title}\"" --json number --jq 'length')"
           [ "${count}" = 0 ] || exit 0
-          gh issue create --title "${title}" --body "Moodle ${NEWBRANCH}.0 has been released. Add the branch to \`versions.json\` (PHP version, SHA-256), decide whether it becomes \`latest\`/\`lts\`, and retire the branch that leaves security support."
+          gh issue create --title "${title}" --body "Moodle ${NEWBRANCH}.0 has been released. Add the branch to \`versions.json\` (PHP version, SHA-256, and the digest of its PHP base image in \`php_images\` if it is a new PHP version), decide whether it becomes \`latest\`/\`lts\`, and retire the branch that leaves security support."
+
+      # With the base images pinned, a week without updates would publish
+      # nothing. Rebuild at least weekly, so Debian packages and the
+      # vulnerability scan stay current.
+      - name: Weekly rebuild
+        if: steps.check.outputs.changed != 'yes'
+        run: |
+          last="$(gh run list --workflow release.yml --status success --limit 1 --json createdAt --jq '.[0].createdAt // empty')"
+          if [ -z "${last}" ] || [ "$(( $(date -u +%s) - $(date -u -d "${last}" +%s) ))" -gt $(( 7 * 24 * 3600 )) ]; then
+            gh workflow run release.yml --ref main
+            echo "No release for a week: weekly rebuild started" >> "$GITHUB_STEP_SUMMARY"
+          fi

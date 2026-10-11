@@ -34,7 +34,10 @@ jobs:
           docker run --rm -v "$PWD:/mnt:ro" -w /mnt "$(.github/scripts/tool-image.sh php)" \
             sh -c 'for f in rootfs/usr/local/lib/oksigenia-moodle/php/*.php tests/fixtures/*/*.php; do php -l "$f" || exit 1; done'
       - name: versions.json
-        run: jq -e '.branches | length > 0' versions.json
+        run: |
+          jq -e '.branches | length > 0' versions.json
+          # Every branch's PHP has a base image pinned by digest.
+          jq -e '. as $v | [.branches[].php] | unique | all(.[]; ($v.php_images[.] // "") | test("^sha256:[0-9a-f]{64}$"))' versions.json
 
   matrix:
     runs-on: ubuntu-24.04

@@ -16,6 +16,7 @@ jq -r --arg b "${branch}" '
   "MOODLE_VERSION=\(.branches[$b].moodle)",
   "MOODLE_SHA256=\(.branches[$b].sha256)",
   "ACCESS_VERSION=\(.access.version)",
-  "ACCESS_SHA256=\(.access.sha256)"' "${v}"
+  "ACCESS_SHA256=\(.access.sha256)",
+  (.branches[$b].php as $p | .php_images[$p] // empty | "PHP_IMAGE=php:\($p)-apache-trixie@\(.)")' "${v}"
 echo 'EOF'
 echo "moodle=$(jq -r --arg b "${branch}" '.branches[$b].moodle' "${v}")"

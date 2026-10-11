@@ -6,12 +6,15 @@
 # CI passes the build arguments for each supported branch from versions.json.
 
 ARG PHP_VERSION=8.4
+# The PHP base image. CI passes it pinned by digest (versions.json,
+# php_images); a local build without it uses the tag.
+ARG PHP_IMAGE=php:${PHP_VERSION}-apache-trixie
 
 # ---------------------------------------------------------------------------
 # Stage 1: fetch and verify the official Moodle package and the optional
 # Oksigenia Access plugin. Nothing from this stage runs in the final image.
 # ---------------------------------------------------------------------------
-FROM php:${PHP_VERSION}-apache-trixie AS sources
+FROM ${PHP_IMAGE} AS sources
 
 ARG MOODLE_VERSION
 ARG MOODLE_SHA256
@@ -69,7 +72,7 @@ RUN test -n "${ACCESS_VERSION}" && test -n "${ACCESS_SHA256}"; \
 # ---------------------------------------------------------------------------
 # Stage 2: runtime image.
 # ---------------------------------------------------------------------------
-FROM php:${PHP_VERSION}-apache-trixie
+FROM ${PHP_IMAGE}
 
 # Locales generated at build time, so that language packs can use them.
 # Add more with --build-arg EXTRA_LOCALES="sv_SE.UTF-8 da_DK.UTF-8".

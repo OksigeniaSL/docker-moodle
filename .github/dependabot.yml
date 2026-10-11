@@ -7,8 +7,12 @@ updates:
     commit-message:
       prefix: ci
   - package-ecosystem: docker
-    directory: /.github/tools
+    directory: /ci
     schedule:
       interval: weekly
     commit-message:
       prefix: ci
+    ignore:
+      # The PHP linter follows the PHP of the image (8.4): only its patches.
+      - dependency-name: php
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
