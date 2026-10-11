@@ -255,6 +255,8 @@ Las mismas imágenes se publican en Docker Hub como `oksigenia/moodle` y en GitH
 
 El equipo de [Oksigenia](https://oksigenia.com/servicios/moodle) trabaja con Moodle desde la versión 1.7 y mantiene esta imagen. ¿Prefieres no mantenerlo tú? Oksigenia puede alojar y mantener tu sitio Moodle.
 
+Alojamiento gestionado para Moodle™ y rescate de sitios Bitnami, para centros educativos: [oksigenia.com/servicios/moodle](https://oksigenia.com/servicios/moodle) ([rescate de Bitnami](https://oksigenia.com/servicios/moodle#bitnami)).
+
 ## Licencia
 
 El código de la imagen (este repositorio) se distribuye con licencia [GNU GPL v3.0](LICENSE). Moodle se distribuye con licencia GNU GPL v3 o posterior.
