@@ -1,0 +1,29 @@
+# Docker Hub's overview is this repository's README. The release updates it
+# too, but a README change alone starts no release, so it is synced here.
+name: Docker Hub overview
+
+on:
+  push:
+    branches: [main]
+    paths: [README.md, .github/workflows/hub-readme.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hub-readme:
+    runs-on: ubuntu-24.04
+    env:
+      HAS_HUB: ${{ secrets.DOCKERHUB_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: env.HAS_HUB == 'true'
+        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
+        with:
+          username: oksigenia
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: oksigenia/moodle
+          short-description: "Maintained Moodle™ LMS image: 4.5 LTS, 5.2, 5.3 LTS. Signed, SBOM, amd64/arm64. Bitnami drop-in."
+          readme-filepath: ./README.md
+          enable-url-completion: true
