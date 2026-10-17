@@ -18,7 +18,8 @@ FROM ${PHP_IMAGE} AS sources
 
 ARG MOODLE_VERSION
 ARG MOODLE_SHA256
-# Only for testing a release before Moodle publishes its package.
+# Another archive than the official package: a release before Moodle
+# publishes it, or the weekly build of main (MOODLE_VERSION is then free text).
 ARG MOODLE_TGZ_URL=""
 ARG ACCESS_VERSION
 ARG ACCESS_SHA256
@@ -26,13 +27,16 @@ ARG ACCESS_SHA256
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
 RUN test -n "${MOODLE_VERSION}" && test -n "${MOODLE_SHA256}"; \
-    # Official packages live under stableXYZ, e.g. 5.2.3 -> stable502.
-    major="${MOODLE_VERSION%%.*}"; rest="${MOODLE_VERSION#*.}"; minor="${rest%%.*}"; \
-    stable="stable${major}$(printf '%02d' "${minor}")"; \
-    # The first release of a branch is packaged without ".0": 5.3.0 -> moodle-5.3.tgz.
-    file="moodle-${MOODLE_VERSION}"; \
-    if [[ "${MOODLE_VERSION}" =~ ^[0-9]+\.[0-9]+\.0$ ]]; then file="moodle-${MOODLE_VERSION%.0}"; fi; \
-    url="${MOODLE_TGZ_URL:-https://download.moodle.org/download.php/direct/${stable}/${file}.tgz}"; \
+    url="${MOODLE_TGZ_URL}"; \
+    if [ -z "${url}" ]; then \
+        # Official packages live under stableXYZ, e.g. 5.2.3 -> stable502.
+        major="${MOODLE_VERSION%%.*}"; rest="${MOODLE_VERSION#*.}"; minor="${rest%%.*}"; \
+        stable="stable${major}$(printf '%02d' "${minor}")"; \
+        # The first release of a branch is packaged without ".0": 5.3.0 -> moodle-5.3.tgz.
+        file="moodle-${MOODLE_VERSION}"; \
+        if [[ "${MOODLE_VERSION}" =~ ^[0-9]+\.[0-9]+\.0$ ]]; then file="moodle-${MOODLE_VERSION%.0}"; fi; \
+        url="https://download.moodle.org/download.php/direct/${stable}/${file}.tgz"; \
+    fi; \
     curl -fsSL --retry 5 -o /tmp/moodle.tgz "${url}"; \
     echo "${MOODLE_SHA256}  /tmp/moodle.tgz" | sha256sum -c -; \
     mkdir -p /usr/src/moodle; \
