@@ -311,6 +311,7 @@ case "${SCENARIO}" in
         [ "$(http_status /login/index.php)" = 503 ] || fail "the upgrade opened a site that was in maintenance mode"
         echo "the site stays in maintenance mode after the upgrade, and the container is healthy"
         cli maintenance --disable >/dev/null
+        log_has 'Building the CSS of theme boost' || fail "the theme CSS was not built after the upgrade"
         basic_checks
         new="$(moodle_release)"
         [ "${old}" != "${new}" ] || fail "release did not change (${new})"
@@ -393,6 +394,10 @@ case "${SCENARIO}" in
             *" block_"*|*" mod_"*) fail "unused removed plugins left registered: ${leftover}" ;;
         esac
         echo "Removed standard plugins still registered: ${leftover:-none}"
+        # The self-signed certificate for Bitnami's port 8443 is a server
+        # certificate, not a CA one (Apache warns about those).
+        cert="$(compose exec -T moodle openssl x509 -in /bitnami/moodledata/oksigenia/tls/tls.crt -noout -text)"
+        grep -q 'CA:FALSE' <<< "${cert}" || fail "the self-signed certificate is not marked CA:FALSE"
         echo "Migrated from ${BITNAMI_IMAGE} to $(moodle_release), add-on kept"
         ;;
 

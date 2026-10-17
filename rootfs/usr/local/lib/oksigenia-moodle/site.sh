@@ -216,6 +216,18 @@ run_moodle_upgrade() {
     moodle_php admin/cli/upgrade.php --non-interactive "${unstable[@]}"
 }
 
+# A cache purge leaves the theme's CSS to be compiled by the first visitor,
+# whose page stays blank meanwhile: seconds for heavy SCSS themes such as
+# Boost Union. Compile the site theme now, before the site opens.
+warm_theme_css() {
+    local theme
+    theme="$(php "${OKS_PHP}/db.php" config theme 2>/dev/null)" || true
+    [ -n "${theme}" ] || theme=boost
+    log "Building the CSS of theme ${theme}"
+    moodle_php admin/cli/build_theme_css.php --themes="${theme}" --direction=ltr >/dev/null 2>&1 \
+        || warn "could not build the CSS of theme ${theme}; the first page will build it"
+}
+
 upgrade_site() {
     local rc=0 out
     out="$(moodle_php admin/cli/upgrade.php --is-pending 2>&1)" || rc=$?
@@ -226,6 +238,7 @@ upgrade_site() {
             if [ "${OKS_RETRYING:-no}" = yes ] || [ -f "${OKS_DATA_STATE}/${MAINTENANCE_BEFORE_NAME}" ]; then
                 restore_maintenance_state
                 moodle_php admin/cli/purge_caches.php >/dev/null || true
+                warm_theme_css
             fi
             return 0
             ;;
@@ -251,6 +264,7 @@ upgrade_site() {
     fi
     remove_deleted_standard_plugins
     moodle_php admin/cli/purge_caches.php >/dev/null || true
+    warm_theme_css
     restore_maintenance_state
     backup_rotate
     log "Database upgrade finished"
@@ -340,11 +354,22 @@ setup_tls() {
     done
     if [ "${OKS_TLS}" = off ] && [ "${OKS_LAYOUT}" = bitnami ]; then
         local dir="${OKS_DATA_STATE}/tls"
+        # Images before 2026-10 made it a CA certificate, which Apache warns
+        # about at every start; it is ours, so it is made again.
+        if [ -f "${dir}/tls.crt" ]; then
+            local text
+            text="$(openssl x509 -in "${dir}/tls.crt" -noout -text 2>/dev/null || true)"
+            if grep -q 'CA:TRUE' <<< "${text}"; then
+                rm -f "${dir}/tls.crt" "${dir}/tls.key"
+            fi
+        fi
         if [ ! -f "${dir}/tls.crt" ]; then
             mkdir -p "${dir}"
             chmod 0700 "${dir}"
             openssl req -x509 -newkey rsa:2048 -nodes -days 1825 -subj "/CN=${APACHE_SERVER_NAME}" \
                 -addext "subjectAltName=DNS:${APACHE_SERVER_NAME},IP:127.0.0.1" \
+                -addext "basicConstraints=critical,CA:FALSE" -addext "keyUsage=critical,digitalSignature,keyEncipherment" \
+                -addext "extendedKeyUsage=serverAuth" \
                 -keyout "${dir}/tls.key" -out "${dir}/tls.crt" 2>/dev/null \
                 || { warn "could not create a self-signed certificate; HTTPS is off"; return 0; }
         fi
