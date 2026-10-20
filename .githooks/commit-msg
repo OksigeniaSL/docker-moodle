@@ -1,0 +1,20 @@
+#!/bin/bash
+# Rejects a commit message that credits a code-generation tool: commits in
+# this repository have one author, Oksigenia. CI runs this same check over
+# the whole history, for commits made with --no-verify or in another clone.
+#
+#   git config core.hooksPath .githooks    (once per clone)
+#
+# Co-Authored-By is fine for a person; only the tools' trailers are refused.
+set -euo pipefail
+
+refused='(noreply@anthropic\.com|^Claude-Session:|^Co-Authored-By:.*\b(Claude|Anthropic|Copilot|Gemini|ChatGPT)\b|Generated with \[?Claude|claude\.ai/code)'
+
+if lines="$(grep -nEi "${refused}" "$1")"; then
+    {
+        echo "Commit refused: the message credits a code-generation tool."
+        echo "${lines}"
+        echo "Remove those lines and commit again."
+    } >&2
+    exit 1
+fi
