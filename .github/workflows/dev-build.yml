@@ -7,8 +7,11 @@ name: Moodle main build
 
 on:
   schedule:
-    # Tuesdays, after Moodle's weekly builds of Monday.
+    # Tuesdays, after Moodle's weekly builds of Monday. GitHub starts
+    # scheduled runs hours late and sometimes drops them, so Wednesday is a
+    # second chance, skipped when the week's build is already there.
     - cron: '17 3 * * 2'
+    - cron: '17 3 * * 3'
   workflow_dispatch:
 
 permissions:
@@ -23,7 +26,36 @@ env:
   DEV_IMAGE: ghcr.io/oksigeniasl/moodle-dev
 
 jobs:
+  # A scheduled run builds only when nothing was pushed in the last 36 hours,
+  # so a late Tuesday run, Wednesday's or one launched by hand count once.
+  due:
+    runs-on: ubuntu-24.04
+    outputs:
+      build: ${{ steps.last.outputs.build }}
+    steps:
+      - id: last
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          build=true
+          if [ "${EVENT}" = schedule ]; then
+            # If the package cannot be read, it builds: a second build in a
+            # week is better than none.
+            last="$(gh api --paginate /orgs/OksigeniaSL/packages/container/moodle-dev/versions \
+              --jq '.[].created_at' | sort | tail -1)" \
+              || { echo "::warning::could not read the package's versions"; last=""; }
+            if [ -n "${last}" ] && [ $(( $(date +%s) - $(date -d "${last}" +%s) )) -lt $(( 36 * 3600 )) ]; then
+              build=false
+              echo "Skipped: the last build was pushed at ${last}" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          echo "build=${build}" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: due
+    if: needs.due.outputs.build == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     steps:
