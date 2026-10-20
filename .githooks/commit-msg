@@ -1,6 +1,6 @@
 #!/bin/bash
 # Rejects a commit message that credits a code-generation tool: commits in
-# this repository have one author, Oksigenia. CI runs this same check over
+# this repository have one author, Oksigenia SL. CI runs this same check over
 # the whole history, for commits made with --no-verify or in another clone.
 #
 #   git config core.hooksPath .githooks    (once per clone)
