@@ -101,6 +101,10 @@ jobs:
           cache-from: type=gha,scope=main-amd64
           cache-to: type=gha,mode=max,scope=main-amd64
 
+      # The package is private, so the summary says which PHP it carries.
+      - name: PHP version
+        run: echo "PHP $(docker run --rm --entrypoint php moodle-dev:test -r 'echo PHP_VERSION;')" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Fresh install
         env:
           IMAGE: moodle-dev:test
