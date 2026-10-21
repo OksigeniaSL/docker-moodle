@@ -14,7 +14,7 @@ Imagen de contenedor del software Moodle™ LMS, mantenida y de código abierto.
 
 ## Qué hace
 
-- **Parches de seguridad el mismo día.** Las versiones de Moodle, también las de seguridad, se publican el día que Moodle las anuncia, y las versiones nuevas de PHP, el día que las trae la imagen oficial de PHP.
+- **Sigue las versiones de Moodle y de PHP.** Cada seis horas, un robot busca versiones nuevas de Moodle y versiones nuevas de PHP en la imagen oficial de PHP. Cuando encuentra una, las imágenes se reconstruyen, se prueban y se publican.
 - **Reconstrucción semanal,** para recoger los parches de Debian.
 - **Se instala y se actualiza sola.** El primer arranque instala el sitio. Al cambiar la etiqueta, actualiza Moodle después de copiar la base de datos y el código.
 - **Completa para Moodle 5.x:** el router de URL viene configurado y las dependencias de Composer de Moodle se instalan al compilar la imagen. El paquete oficial no las trae, la comprobación de entorno de Moodle las pide y en la 5.3 las necesitan los clientes OAuth 2.

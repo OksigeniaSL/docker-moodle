@@ -24,6 +24,6 @@ jobs:
           username: oksigenia
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: oksigenia/moodle
-          short-description: "Maintained Moodle™ LMS image: 4.5 LTS, 5.2, 5.3 LTS. Same-day security fixes. Signed, amd64/arm64."
+          short-description: "Maintained Moodle™ LMS image: 4.5 LTS, 5.2, 5.3 LTS. Rebuilt weekly. Signed, SBOM, amd64/arm64."
           readme-filepath: ./README.md
           enable-url-completion: true

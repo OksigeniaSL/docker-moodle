@@ -14,7 +14,7 @@ A maintained, open-source container image of the Moodle™ LMS software: the off
 
 ## What it does
 
-- **Security fixes the day they ship.** Moodle releases, security releases included, are published the day Moodle announces them, and new PHP releases the day the official PHP image carries them.
+- **Follows Moodle and PHP releases.** Every six hours a bot looks for new Moodle releases and for new PHP releases in the official PHP image. When it finds one, the images are rebuilt, tested and published.
 - **Rebuilt every week,** to pick up Debian's fixes.
 - **Installs and upgrades itself.** The first start installs the site. Changing the tag upgrades Moodle, after backing up the database and the code.
 - **Complete for Moodle 5.x:** the URL router is configured, and Moodle's Composer dependencies are installed when the image is built. The official package leaves them out; Moodle's environment check asks for them, and in 5.3 OAuth 2 clients need them.
