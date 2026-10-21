@@ -85,6 +85,17 @@ ARG EXTRA_LOCALES=""
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
+# APCu, igbinary and Redis come from their projects' tags on GitHub, pinned
+# by version and SHA-256, instead of from pecl.php.net: on the day of PHP's
+# security releases of 21 October 2026 it answered 500 to almost every
+# download, and pecl install gives up on the first error.
+ARG APCU_VERSION=5.1.28
+ARG APCU_SHA256=0e60ba9d0fa4021c57a70c071f3d8f71de236275d084e560d5959fec4edd8c32
+ARG IGBINARY_VERSION=3.2.17RC1
+ARG IGBINARY_SHA256=d563482bd3f623a08bd38ecab1da69e2f8c0f87a781f8b395dd0a95c9959d6e4
+ARG REDIS_VERSION=6.3.0
+ARG REDIS_SHA256=cb8f81df1a275599e4f8ddcfec7e1f65ed1953e6f5673649149fd680ebff4cad
+
 # PHP extensions required or recommended by Moodle. Build dependencies,
 # including the compilers shipped by the base image, are purged afterwards
 # so that the runtime image carries no toolchain.
@@ -97,10 +108,23 @@ RUN savedAptMark="$(apt-mark showmanual)"; \
     docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp; \
     docker-php-ext-configure ldap --with-libdir="lib/$(dpkg-architecture --query DEB_BUILD_MULTIARCH)"; \
     docker-php-ext-install -j"$(nproc)" exif gd intl ldap mysqli opcache pgsql soap zip; \
-    pecl install apcu igbinary; \
-    pecl install -D 'enable-redis-igbinary="yes" enable-redis-lzf="no" enable-redis-zstd="no" enable-redis-msgpack="no" enable-redis-lz4="no"' redis; \
-    docker-php-ext-enable apcu igbinary redis; \
-    rm -rf /tmp/pear ~/.pearrc; \
+    docker-php-source extract; \
+    for src in "apcu krakjoe/apcu v${APCU_VERSION} ${APCU_SHA256}" \
+               "igbinary igbinary/igbinary ${IGBINARY_VERSION} ${IGBINARY_SHA256}" \
+               "redis phpredis/phpredis ${REDIS_VERSION} ${REDIS_SHA256}"; do \
+        read -r ext repo tag sum <<< "${src}"; \
+        curl -fsSL --retry 5 --retry-all-errors -o "/tmp/${ext}.tar.gz" "https://github.com/${repo}/archive/refs/tags/${tag}.tar.gz"; \
+        echo "${sum}  /tmp/${ext}.tar.gz" | sha256sum -c --quiet -; \
+        mkdir -p "/usr/src/php/ext/${ext}"; \
+        tar -xzf "/tmp/${ext}.tar.gz" --strip-components 1 -C "/usr/src/php/ext/${ext}"; \
+    done; \
+    # Redis builds against the igbinary headers, so igbinary goes first.
+    docker-php-ext-install -j"$(nproc)" apcu igbinary; \
+    docker-php-ext-configure redis --enable-redis-igbinary --disable-redis-lzf --disable-redis-zstd \
+        --disable-redis-msgpack --disable-redis-lz4; \
+    docker-php-ext-install -j"$(nproc)" redis; \
+    docker-php-source delete; \
+    rm -f /tmp/apcu.tar.gz /tmp/igbinary.tar.gz /tmp/redis.tar.gz; \
     # Keep the base packages plus the shared libraries the new extensions
     # link against; drop the -dev packages and the toolchain.
     apt-mark auto '.*' > /dev/null; \
