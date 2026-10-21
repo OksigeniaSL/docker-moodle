@@ -1,0 +1,83 @@
+# Emergency builds for Oksigenia's own sites, for the hours between a PHP
+# security release and the official php image that carries it. It builds
+# the official Dockerfile of docker-library/php at the commit that moved to
+# the fixed version, then the image of each branch on top, runs the same
+# install tests as a release and pushes the result, amd64 only, to the
+# private package ghcr.io/oksigeniasl/moodle-dev as <moodle>-php<php>.
+# oksigenia/moodle is never built this way: it waits for the official base.
+name: Patched PHP base
+
+on:
+  workflow_dispatch:
+    inputs:
+      library_commit:
+        description: Full commit of docker-library/php with the fixed PHP
+        required: true
+      branches:
+        description: Branches of versions.json, separated by spaces
+        required: true
+        default: '5.2 5.3'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  DEV_IMAGE: ghcr.io/oksigeniasl/moodle-dev
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: PHP from the official Dockerfile
+        env:
+          COMMIT: ${{ inputs.library_commit }}
+          BRANCHES: ${{ inputs.branches }}
+        run: |
+          set -euo pipefail
+          [[ "${COMMIT}" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::library_commit must be a full commit"; exit 1; }
+          src="${RUNNER_TEMP}/php-library"
+          git init -q "${src}"
+          git -C "${src}" fetch -q --depth 1 https://github.com/docker-library/php.git "${COMMIT}"
+          git -C "${src}" checkout -q FETCH_HEAD
+          for b in ${BRANCHES}; do jq -er --arg b "${b}" '.branches[$b].php' versions.json; done | sort -u | while read -r php; do
+            docker build -q -t "php-base:${php}" "${src}/${php}/trixie/apache" >/dev/null
+            echo "PHP $(docker run --rm "php-base:${php}" php -r 'echo PHP_VERSION;') from docker-library/php ${COMMIT}" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Build and test each branch
+        env:
+          BRANCHES: ${{ inputs.branches }}
+        run: |
+          set -euo pipefail
+          for b in ${BRANCHES}; do
+            php="$(jq -r --arg b "${b}" '.branches[$b].php' versions.json)"
+            moodle="$(jq -r --arg b "${b}" '.branches[$b].moodle' versions.json)"
+            full="$(docker run --rm "php-base:${php}" php -r 'echo PHP_VERSION;')"
+            # The release's build arguments, with the base built above.
+            args=()
+            while IFS= read -r a; do args+=(--build-arg "${a}"); done \
+              < <(.github/scripts/build-args.sh "${b}" | sed '1d;/^EOF$/,$d' | grep -v '^PHP_IMAGE=')
+            docker build -q -t "moodle-patched:${b}" "${args[@]}" --build-arg "PHP_IMAGE=php-base:${php}" \
+              --label "org.opencontainers.image.revision=${GITHUB_SHA}" . >/dev/null
+            IMAGE="moodle-patched:${b}" tests/run.sh install-mariadb
+            IMAGE="moodle-patched:${b}" tests/run.sh install-pgsql
+            echo "${b} ${moodle}-php${full}" >> "${RUNNER_TEMP}/tags"
+          done
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push
+        run: |
+          set -euo pipefail
+          while read -r b tag; do
+            docker tag "moodle-patched:${b}" "${DEV_IMAGE}:${tag}"
+            docker push --quiet "${DEV_IMAGE}:${tag}"
+            echo "Pushed ${DEV_IMAGE}:${tag}" >> "$GITHUB_STEP_SUMMARY"
+          done < "${RUNNER_TEMP}/tags"
