@@ -3,8 +3,10 @@
 # the official Dockerfile of docker-library/php at the commit that moved to
 # the fixed version, then the image of each branch on top, runs the same
 # install tests as a release and pushes the result, amd64 only, to the
-# private package ghcr.io/oksigeniasl/moodle-dev as <moodle>-php<php>.
-# oksigenia/moodle is never built this way: it waits for the official base.
+# private package ghcr.io/oksigeniasl/moodle-dev as <moodle>-php<php>. The
+# PHP base goes there too, as php-<php>-apache-trixie, for other images of
+# those sites (WordPress). oksigenia/moodle is never built this way: it
+# waits for the official base.
 name: Patched PHP base
 
 on:
@@ -13,10 +15,14 @@ on:
       library_commit:
         description: Full commit of docker-library/php with the fixed PHP
         required: true
-      branches:
-        description: Branches of versions.json, separated by spaces
+      php:
+        description: PHP branches to build, separated by spaces
         required: true
-        default: '5.2 5.3'
+        default: '8.4'
+      branches:
+        description: Branches of versions.json to build on them, separated by spaces (none for only the base)
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -35,7 +41,7 @@ jobs:
       - name: PHP from the official Dockerfile
         env:
           COMMIT: ${{ inputs.library_commit }}
-          BRANCHES: ${{ inputs.branches }}
+          PHP_BRANCHES: ${{ inputs.php }}
         run: |
           set -euo pipefail
           [[ "${COMMIT}" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::library_commit must be a full commit"; exit 1; }
@@ -43,9 +49,11 @@ jobs:
           git init -q "${src}"
           git -C "${src}" fetch -q --depth 1 https://github.com/docker-library/php.git "${COMMIT}"
           git -C "${src}" checkout -q FETCH_HEAD
-          for b in ${BRANCHES}; do jq -er --arg b "${b}" '.branches[$b].php' versions.json; done | sort -u | while read -r php; do
+          for php in ${PHP_BRANCHES}; do
             docker build -q -t "php-base:${php}" "${src}/${php}/trixie/apache" >/dev/null
-            echo "PHP $(docker run --rm "php-base:${php}" php -r 'echo PHP_VERSION;') from docker-library/php ${COMMIT}" >> "$GITHUB_STEP_SUMMARY"
+            full="$(docker run --rm "php-base:${php}" php -r 'echo PHP_VERSION;')"
+            echo "PHP ${full} from docker-library/php ${COMMIT}" >> "$GITHUB_STEP_SUMMARY"
+            echo "php-base:${php} php-${full}-apache-trixie" >> "${RUNNER_TEMP}/tags"
           done
 
       - name: Build and test each branch
@@ -55,6 +63,8 @@ jobs:
           set -euo pipefail
           for b in ${BRANCHES}; do
             php="$(jq -r --arg b "${b}" '.branches[$b].php' versions.json)"
+            docker image inspect "php-base:${php}" >/dev/null 2>&1 \
+              || { echo "::error::branch ${b} needs PHP ${php}, which is not in the php input"; exit 1; }
             moodle="$(jq -r --arg b "${b}" '.branches[$b].moodle' versions.json)"
             full="$(docker run --rm "php-base:${php}" php -r 'echo PHP_VERSION;')"
             # The release's build arguments, with the base built above.
@@ -65,7 +75,7 @@ jobs:
               --label "org.opencontainers.image.revision=${GITHUB_SHA}" . >/dev/null
             IMAGE="moodle-patched:${b}" tests/run.sh install-mariadb
             IMAGE="moodle-patched:${b}" tests/run.sh install-pgsql
-            echo "${b} ${moodle}-php${full}" >> "${RUNNER_TEMP}/tags"
+            echo "moodle-patched:${b} ${moodle}-php${full}" >> "${RUNNER_TEMP}/tags"
           done
 
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -76,8 +86,8 @@ jobs:
       - name: Push
         run: |
           set -euo pipefail
-          while read -r b tag; do
-            docker tag "moodle-patched:${b}" "${DEV_IMAGE}:${tag}"
+          while read -r img tag; do
+            docker tag "${img}" "${DEV_IMAGE}:${tag}"
             docker push --quiet "${DEV_IMAGE}:${tag}"
             echo "Pushed ${DEV_IMAGE}:${tag}" >> "$GITHUB_STEP_SUMMARY"
           done < "${RUNNER_TEMP}/tags"
