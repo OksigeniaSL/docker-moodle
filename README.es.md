@@ -1,21 +1,23 @@
 # Imagen de contenedor de Moodle™ por Oksigenia
 
-Imagen de contenedor del software Moodle™ LMS, mantenida y de código abierto. Lleva el código oficial de Moodle sin modificar, con Apache y PHP configurados como recomienda Moodle. Se instala sola en el primer arranque, se actualiza sola al cambiar la etiqueta y sustituye directamente a `bitnami/moodle`.
+Imagen de contenedor del software Moodle™ LMS, mantenida y de código abierto. Lleva el código oficial de Moodle sin modificar, con Apache y PHP configurados como recomienda Moodle.
 
 [Read in English](README.md)
 
-## Por qué existe
+> **php2shell está corregido desde el 21 de octubre de 2026.** Los fallos de PHP CVE-2026-109618 y CVE-2026-109619 (ejecución remota de código sin iniciar sesión) están corregidos en `4.5.15-r17`, con PHP 8.3.36, y en `5.2.4-r17` y `5.3.0-r17`, con PHP 8.4.27. Las etiquetas de rama (`4.5`, `5.2`, `5.3`, `latest`…) ya apuntan a ellas. Descarga la etiqueta y vuelve a crear el contenedor:
+>
+> ```sh
+> docker compose pull moodle && docker compose up -d moodle
+> ```
+>
+> Si fijaste una etiqueta inmutable (`5.2.4-r16` o anterior), cámbiala por la `-r17` de tu rama.
 
-Las imágenes gratuitas de Moodle de Bitnami dejaron de actualizarse en agosto de 2025: `bitnami/moodle` se congeló el 19-08-2025 y `bitnamilegacy/moodle` el 23-08-2025. Muchos sitios siguen funcionando con ellas, en Moodle 4.5.4 o 5.0.2, sin parches de seguridad. Esta imagen toma el relevo:
+## Qué hace
 
-- **El mismo Compose, otra imagen.** Acepta las variables de entorno y la estructura de volúmenes de Bitnami.
-  - Basta con cambiar la línea `image:` para que el sitio siga funcionando, actualizado y con sus plugins.
-  - La migración se prueba en CI con volúmenes reales de `bitnamilegacy/moodle`. Véase [Migrar desde Bitnami](docs/migrate-from-bitnami.es.md).
-- **Cambiar la etiqueta actualiza Moodle de verdad.** Antes de tocar nada, la imagen hace copia de la base de datos y del código.
+- **Parches de seguridad el mismo día.** Las versiones de Moodle, también las de seguridad, se publican el día que Moodle las anuncia, y las versiones nuevas de PHP, el día que las trae la imagen oficial de PHP.
+- **Reconstrucción semanal,** para recoger los parches de Debian.
+- **Se instala y se actualiza sola.** El primer arranque instala el sitio. Al cambiar la etiqueta, actualiza Moodle después de copiar la base de datos y el código.
 - **Completa para Moodle 5.x:** el router de URL viene configurado y las dependencias de Composer de Moodle se instalan al compilar la imagen. El paquete oficial no las trae, la comprobación de entorno de Moodle las pide y en la 5.3 las necesitan los clientes OAuth 2.
-- **Al día:**
-  - Todas las ramas soportadas se reconstruyen cada semana, para recoger los parches de Debian y de PHP.
-  - Las versiones nuevas de Moodle se incorporan automáticamente.
 - **Verificable:**
   - Cada imagen se escanea con Trivy antes de publicarse.
   - Se firma con cosign sin claves de larga duración.
@@ -32,6 +34,24 @@ docker compose logs -f moodle      # el primer arranque tarda unos minutos
 ```
 
 Abre `MOODLE_URL` y entra como `admin` con `MOODLE_ADMIN_PASSWORD`. Si no indicas la contraseña del administrador, se genera una al azar y aparece una sola vez en los logs.
+
+## Si vienes de Bitnami
+
+Las imágenes gratuitas de Moodle de Bitnami dejaron de actualizarse en agosto de 2025. Esta imagen acepta sus variables de entorno y su estructura de volúmenes, así que basta con cambiar una línea del Compose:
+
+```diff
+   moodle:
+-    image: bitnamilegacy/moodle:5.0.2
++    image: oksigenia/moodle:5.2
+```
+
+La imagen hace lo siguiente:
+- reconoce los volúmenes `/bitnami/moodle` y `/bitnami/moodledata`;
+- lee tu `config.php` y conserva tus plugins;
+- actualiza Moodle;
+- mantiene los puertos 8080 y 8443.
+
+Los nombres de variables de Bitnami siguen funcionando, y los logs sugieren los nuevos. La migración se prueba en CI con volúmenes reales de `bitnamilegacy/moodle`. Antes de hacerlo en producción, lee la [guía de migración](docs/migrate-from-bitnami.es.md): explica las copias de seguridad, el contenedor de la base de datos, qué etiqueta elegir y cómo volver atrás.
 
 ## Etiquetas
 
@@ -142,7 +162,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 Constrúyela desde tu Compose con `build: .` en lugar de `image:`. La salida SVG del filtro TeX usa `dvisvgm`; las salidas PNG y GIF necesitan además ImageMagick (añade `imagemagick`).
 
-Si la construcción no llega a los servidores de paquetes (apt, o pecl si construyes esta misma imagen) y el host sí, lo habitual es que el IPv6 de Docker esté roto en ese host. Construye con `docker build --network host`, o con `network: host` dentro de `build:` en Compose.
+Si la construcción no llega a los servidores de paquetes (apt, o GitHub si construyes esta misma imagen) y el host sí, lo habitual es que el IPv6 de Docker esté roto en ese host. Construye con `docker build --network host`, o con `network: host` dentro de `build:` en Compose.
 
 Dos cosas sobre el filtro de notación TeX:
 - **Desde Moodle 5.3 hace falta LaTeX.** El filtro recurría al mimetex incluido cuando LaTeX faltaba o fallaba, y Moodle 5.3 ya no trae mimetex.
@@ -197,24 +217,6 @@ docker compose exec moodle moodle-cli admin/tool/task/cli/schedule_task.php --li
 ```
 
 Los scripts de `/docker-entrypoint-init.d/` (`.sh` y `.php`) se ejecutan una vez, tras la primera instalación.
-
-## Migrar desde Bitnami
-
-Cambia solo la imagen en tu Compose:
-
-```diff
-   moodle:
--    image: bitnamilegacy/moodle:5.0.2
-+    image: oksigenia/moodle:5.2
-```
-
-La imagen hace lo siguiente:
-- reconoce los volúmenes `/bitnami/moodle` y `/bitnami/moodledata`;
-- lee tu `config.php` y conserva tus plugins;
-- actualiza Moodle;
-- mantiene los puertos 8080 y 8443.
-
-Los nombres de variables de Bitnami siguen funcionando, y los logs sugieren los nuevos. Antes de hacerlo en producción, lee la [guía de migración](docs/migrate-from-bitnami.es.md): explica las copias de seguridad, el contenedor de la base de datos y cómo volver atrás.
 
 ## Oksigenia Access
 

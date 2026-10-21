@@ -1,19 +1,23 @@
 # Moodle™ container image by Oksigenia
 
-A maintained, open-source container image of the Moodle™ LMS software: the official Moodle code, unmodified, with Apache and PHP set up the way Moodle recommends. It installs itself on first start, upgrades itself when you change the tag, and runs as a drop-in replacement for `bitnami/moodle`.
+A maintained, open-source container image of the Moodle™ LMS software: the official Moodle code, unmodified, with Apache and PHP set up the way Moodle recommends.
 
 [Leer en español](README.es.md)
 
-## Why this image
+> **php2shell is fixed as of 21 October 2026.** The PHP vulnerabilities CVE-2026-109618 and CVE-2026-109619 (remote code execution without logging in) are fixed in `4.5.15-r17`, with PHP 8.3.36, and in `5.2.4-r17` and `5.3.0-r17`, with PHP 8.4.27. The branch tags (`4.5`, `5.2`, `5.3`, `latest`…) already point to them. Pull the tag and recreate the container:
+>
+> ```sh
+> docker compose pull moodle && docker compose up -d moodle
+> ```
+>
+> If you pinned an immutable tag (`5.2.4-r16` or older), change it to the `-r17` of your branch.
 
-Bitnami's free Moodle images stopped receiving updates in August 2025 (`bitnami/moodle` was frozen on 2025-08-19, `bitnamilegacy/moodle` on 2025-08-23). Many sites still run on them, on Moodle 4.5.4 or 5.0.2, without security fixes. This image takes over:
+## What it does
 
-- **Same Compose file, new image.** It accepts Bitnami's environment variables and volume layout. Change the `image:` line and your site keeps running, upgraded, with its add-on plugins. The migration is tested in CI against real `bitnamilegacy/moodle` volumes. See [Migrating from Bitnami](docs/migrate-from-bitnami.md).
-- **Changing the tag really upgrades Moodle.** Before touching anything, the image backs up the database and the code.
+- **Security fixes the day they ship.** Moodle releases, security releases included, are published the day Moodle announces them, and new PHP releases the day the official PHP image carries them.
+- **Rebuilt every week,** to pick up Debian's fixes.
+- **Installs and upgrades itself.** The first start installs the site. Changing the tag upgrades Moodle, after backing up the database and the code.
 - **Complete for Moodle 5.x:** the URL router is configured, and Moodle's Composer dependencies are installed when the image is built. The official package leaves them out; Moodle's environment check asks for them, and in 5.3 OAuth 2 clients need them.
-- **Kept current:**
-  - Every supported branch is rebuilt every week, to pick up Debian and PHP fixes.
-  - New Moodle releases are picked up automatically.
 - **Verifiable:**
   - Every image is scanned with Trivy before it is published.
   - Images are signed with cosign, without long-lived keys.
@@ -30,6 +34,18 @@ docker compose logs -f moodle      # first start: a few minutes
 ```
 
 Open `MOODLE_URL` and log in as `admin` with `MOODLE_ADMIN_PASSWORD`. If you leave the admin password out, a random one is generated and printed once in the logs.
+
+## Coming from Bitnami
+
+Bitnami's free Moodle images stopped receiving updates in August 2025. This image accepts their environment variables and volume layout, so changing one line of your Compose file is enough:
+
+```diff
+   moodle:
+-    image: bitnamilegacy/moodle:5.0.2
++    image: oksigenia/moodle:5.2
+```
+
+The image recognises the `/bitnami/moodle` and `/bitnami/moodledata` volumes, reads your existing `config.php`, keeps your add-on plugins, upgrades Moodle and keeps ports 8080 and 8443. Bitnami's variable names keep working, and the logs suggest the new names. The migration is tested in CI against real `bitnamilegacy/moodle` volumes. Read the [migration guide](docs/migrate-from-bitnami.md) before doing it in production: it covers backups, the database container, which tag to choose and rollback.
 
 ## Tags
 
@@ -140,7 +156,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 Build it from your Compose file with `build: .` instead of `image:`. The TeX filter's SVG output uses `dvisvgm`; its PNG and GIF outputs also need ImageMagick (add `imagemagick`).
 
-If the build cannot reach the package servers (apt, or pecl when building this image itself) while the host can, Docker's IPv6 is often broken on that host. Build with `docker build --network host`, or `network: host` under `build:` in Compose.
+If the build cannot reach the package servers (apt, or GitHub when building this image itself) while the host can, Docker's IPv6 is often broken on that host. Build with `docker build --network host`, or `network: host` under `build:` in Compose.
 
 Two things about the TeX notation filter:
 - **LaTeX is required from Moodle 5.3.** The filter used to fall back to the bundled mimetex when LaTeX was missing or failed; Moodle 5.3 no longer ships mimetex.
@@ -191,18 +207,6 @@ docker compose exec moodle moodle-cli admin/tool/task/cli/schedule_task.php --li
 ```
 
 Scripts in `/docker-entrypoint-init.d/` (`.sh` and `.php`) run once, after the first install.
-
-## Migrating from Bitnami
-
-Change only the image in your Compose file:
-
-```diff
-   moodle:
--    image: bitnamilegacy/moodle:5.0.2
-+    image: oksigenia/moodle:5.2
-```
-
-The image recognises the `/bitnami/moodle` and `/bitnami/moodledata` volumes, reads your existing `config.php`, keeps your add-on plugins, upgrades Moodle and keeps ports 8080 and 8443. Bitnami's variable names keep working, and the logs suggest the new names. Read the [migration guide](docs/migrate-from-bitnami.md) before doing it in production: it covers backups, the database container and rollback.
 
 ## Oksigenia Access
 
