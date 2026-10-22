@@ -1,0 +1,51 @@
+# Deletes versions of the private package ghcr.io/oksigeniasl/moodle-dev by
+# tag, such as the emergency builds once Oksigenia's sites no longer use
+# them. Deleting cannot be undone, so it only lists what it would delete
+# unless delete is set, and it refuses a version that carries any tag not
+# asked for (6.0dev shares its version with the build it points to).
+name: Prune moodle-dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: Tags to delete, separated by spaces
+        required: true
+      delete:
+        description: Delete them (otherwise only list them)
+        type: boolean
+        default: false
+
+permissions:
+  packages: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-24.04
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAGS: ${{ inputs.tags }}
+          DELETE: ${{ inputs.delete }}
+        run: |
+          set -euo pipefail
+          api=/orgs/OksigeniaSL/packages/container/moodle-dev/versions
+          gh api --paginate "${api}" --jq '.[] | {id, tags: .metadata.container.tags}' > versions.jsonl
+          wanted="$(jq -cn --arg t "${TAGS}" '$t | split(" ") | map(select(. != ""))')"
+          ids=()
+          for tag in $(jq -r '.[]' <<< "${wanted}"); do
+            v="$(jq -c --arg t "${tag}" 'select(.tags | index($t))' versions.jsonl)"
+            [ -n "${v}" ] || { echo "::error::no version is tagged ${tag}"; exit 1; }
+            extra="$(jq -r --argjson w "${wanted}" '.tags - $w | join(" ")' <<< "${v}")"
+            [ -z "${extra}" ] || { echo "::error::the version tagged ${tag} also carries ${extra}"; exit 1; }
+            ids+=("$(jq -r .id <<< "${v}")")
+            echo "${tag}: version $(jq -r .id <<< "${v}")" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+          if [ "${DELETE}" != true ]; then
+            echo "Listed only; run again with delete to remove them." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for id in $(printf '%s\n' "${ids[@]}" | sort -u); do
+            gh api -X DELETE "${api}/${id}"
+            echo "Deleted version ${id}" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
