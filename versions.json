@@ -1,7 +1,7 @@
 {
   "access": {
-    "version": "1.1.2",
-    "sha256": "44657721843d1a862b2634db17eecd1226b51aa41710639a5b103eee65125307"
+    "version": "1.1.3",
+    "sha256": "f041ee72ec256e409e21231a5018dd6c1b95862d564d30d102e7d2f465568b09"
   },
   "php_images": {
     "8.3": "sha256:4aed5d62fe32801afa58b3d18c26b12aa86f25da27526c128cce99e63a38a4b0",
