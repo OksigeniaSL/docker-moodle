@@ -75,10 +75,19 @@ jobs:
             sleep 10
           done
           [ -n "${run}" ] || { echo "CI run not found"; exit 1; }
-          url="$(gh run view "${run}" --json url --jq .url)"
+          url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${run}"
 
+          # Polled rather than gh run watch, which gives up on a single API error:
+          # a 502 on 24 October 2026 failed an update whose CI was still running.
+          conclusion=""
+          for _ in $(seq 1 150); do
+            sleep 60
+            conclusion="$(gh run view "${run}" --json status,conclusion \
+              --jq 'select(.status == "completed") | .conclusion' 2>/dev/null)" || true
+            [ -n "${conclusion}" ] && break
+          done
           ci=passed
-          gh run watch "${run}" --exit-status --interval 60 > /dev/null || ci=failed
+          [ "${conclusion}" = success ] || ci=failed
 
           # GitHub also creates a pull_request run for a bot's pull request, held for an
           # approval nobody gives; it shows as failed once the PR closes. CI ran above.
