@@ -1,17 +1,16 @@
-# Weekly build of Moodle's main branch (the next major release, now 6.0dev)
-# for Oksigenia's own test site. It is not a release of the image: it goes
-# to a separate package, ghcr.io/oksigeniasl/moodle-dev, kept private, and
-# never to oksigenia/moodle. It is pushed only after a fresh install and an
-# upgrade from the newest stable branch pass.
+# Build of Moodle's main branch (the next major release, now 6.0dev) after
+# each of Moodle's weekly releases, for Oksigenia's own test site. It is not
+# a release of the image: it goes to a separate package,
+# ghcr.io/oksigeniasl/moodle-dev, kept private, and never to
+# oksigenia/moodle. It is pushed only after a fresh install and an upgrade
+# from the newest stable branch pass.
 name: Moodle main build
 
 on:
   schedule:
-    # Tuesdays, after Moodle's weekly builds of Monday. GitHub starts
-    # scheduled runs hours late and sometimes drops them, so Wednesday is a
-    # second chance, skipped when the week's build is already there.
-    - cron: '17 3 * * 2'
-    - cron: '17 3 * * 3'
+    # Daily, because Moodle's weekly release of main lands on no fixed day
+    # (Tuesday to Friday in 2026). A day without one costs a few seconds.
+    - cron: '17 3 * * *'
   workflow_dispatch:
 
 permissions:
@@ -26,8 +25,9 @@ env:
   DEV_IMAGE: ghcr.io/oksigeniasl/moodle-dev
 
 jobs:
-  # A scheduled run builds only when nothing was pushed in the last 36 hours,
-  # so a late Tuesday run, Wednesday's or one launched by hand count once.
+  # A scheduled run builds when main has a commit with no build yet, and
+  # otherwise when nothing was pushed for 6 days, so Debian packages and
+  # Oksigenia Access stay current. One launched by hand always builds.
   due:
     runs-on: ubuntu-24.04
     outputs:
@@ -41,14 +41,18 @@ jobs:
           set -euo pipefail
           build=true
           if [ "${EVENT}" = schedule ]; then
-            # If the package cannot be read, it builds: a second build in a
-            # week is better than none.
-            last="$(gh api --paginate /orgs/OksigeniaSL/packages/container/moodle-dev/versions \
-              --jq '.[].created_at' | sort | tail -1)" \
-              || { echo "::warning::could not read the package's versions"; last=""; }
-            if [ -n "${last}" ] && [ $(( $(date +%s) - $(date -d "${last}" +%s) )) -lt $(( 36 * 3600 )) ]; then
+            sha="$(git ls-remote https://github.com/moodle/moodle.git refs/heads/main | cut -c1-7)"
+            # One line per version: when it was pushed, then its tags. If the
+            # package cannot be read, it builds: an extra build is better
+            # than none.
+            versions="$(gh api --paginate /orgs/OksigeniaSL/packages/container/moodle-dev/versions \
+              --jq '.[] | ([.created_at] + .metadata.container.tags) | join(" ")')" \
+              || { echo "::warning::could not read the package's versions"; versions=""; }
+            last="$(cut -d' ' -f1 <<< "${versions}" | sort | tail -1)"
+            if [ -n "${sha}" ] && grep -qE -- "-${sha}( |$)" <<< "${versions}" \
+              && [ $(( $(date +%s) - $(date -d "${last}" +%s) )) -lt $(( 6 * 24 * 3600 )) ]; then
               build=false
-              echo "Skipped: the last build was pushed at ${last}" >> "$GITHUB_STEP_SUMMARY"
+              echo "Skipped: main (${sha}) is built, and the last build was pushed at ${last}" >> "$GITHUB_STEP_SUMMARY"
             fi
           fi
           echo "build=${build}" >> "$GITHUB_OUTPUT"
