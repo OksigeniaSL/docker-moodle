@@ -1,5 +1,6 @@
-# Lint, build every supported branch and run the end-to-end tests.
-# Runs on pull requests and pushes; it never publishes anything.
+# Lint, scan the whole history for secrets, build every supported branch and
+# run the end-to-end tests. Runs on pull requests and pushes, and the version
+# bot dispatches it for its own pull requests; it never publishes anything.
 name: CI
 
 on:
@@ -56,6 +57,19 @@ jobs:
             .githooks/commit-msg "${RUNNER_TEMP}/msg" || { echo "::error::$(git log -1 --format='%h %s' "${c}")"; bad=1; }
           done
           exit "${bad}"
+
+  # Secrets in any commit of the history (Gitleaks, pinned by digest in
+  # ci/Dockerfile, so its image is checked against that digest on pull).
+  gitleaks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Gitleaks (whole history)
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo:ro" -w /repo \
+            "$(.github/scripts/tool-image.sh gitleaks)" git --redact --verbose --exit-code 1 /repo
 
   matrix:
     runs-on: ubuntu-24.04

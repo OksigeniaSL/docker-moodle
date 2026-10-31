@@ -89,9 +89,10 @@ jobs:
           ci=passed
           [ "${conclusion}" = success ] || ci=failed
 
-          # GitHub also creates a pull_request run for a bot's pull request, held for an
-          # approval nobody gives; it shows as failed once the PR closes. CI ran above.
-          gh run list --workflow ci.yml --branch "${branch}" --event pull_request --status action_required \
+          # GitHub also creates pull_request runs for a bot's pull request, held for an
+          # approval nobody gives; they show as failed once the PR closes. CI ran above.
+          # Any workflow's, so a new one with a pull_request trigger is covered too.
+          gh run list --branch "${branch}" --event pull_request --status action_required \
             --json databaseId --jq '.[].databaseId' | xargs -r -n1 gh run delete || true
 
           if [ "${ci}" = passed ]; then
