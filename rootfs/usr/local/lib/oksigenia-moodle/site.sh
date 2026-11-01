@@ -314,8 +314,11 @@ sync_redis_cache() {
         fi
         return 0
     fi
-    # The password counts too (as a hash), so that changing it updates the store.
+    # The password counts too (as a hash), so that changing it updates the store,
+    # and read-only sessions, which also move the session caches to Redis.
     wanted="${MOODLE_REDIS_HOST}:${MOODLE_REDIS_PORT:-6379}:$(printf '%s' "${MOODLE_REDIS_PASSWORD:-}" | sha256sum | cut -c1-16)"
+    # shellcheck disable=SC2016 # PHP code, expanded by PHP
+    wanted+="$(moodle_php -r 'define("CLI_SCRIPT", true); define("ABORT_AFTER_CONFIG", true); require "config.php"; echo empty($CFG->enable_read_only_sessions) ? "" : ":readonly";')" || true
     [ "$(cat "${stamp}" 2>/dev/null)" = "${wanted}" ] && return 0
     if moodle_php "${OKS_PHP}/redis-cache.php" "${MOODLE_CODE_DIR}"; then
         echo "${wanted}" > "${stamp}"

@@ -2,7 +2,8 @@
 // Points Moodle's application cache (MUC) at Redis. Sessions use Redis
 // through config.php; this adds a Redis cache store and makes it the
 // default for application caches. Idempotent: it updates the store if the
-// connection settings change.
+// connection settings change. With read-only sessions, session caches go
+// there too: Moodle refuses a session that holds them inside itself.
 //
 // Usage: php redis-cache.php <code-dir>          (set up or update)
 //        php redis-cache.php <code-dir> remove   (back to Moodle's default store)
@@ -59,7 +60,7 @@ if (isset($stores[$name])) {
 }
 $writer->set_mode_mappings([
     cache_store::MODE_APPLICATION => [$name],
-    cache_store::MODE_SESSION => ['default_session'],
+    cache_store::MODE_SESSION => [empty($CFG->enable_read_only_sessions) ? 'default_session' : $name],
     cache_store::MODE_REQUEST => ['default_request'],
 ]);
 mtrace("[moodle] application cache stored in Redis at $host:$port");
