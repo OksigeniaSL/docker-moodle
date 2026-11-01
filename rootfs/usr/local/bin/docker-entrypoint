@@ -87,6 +87,7 @@ fi
 upgrade_site
 sync_langs
 sync_redis_cache
+write_maintenance_page
 run_init_scripts
 
 flock -u 9

@@ -288,6 +288,14 @@ remove_deleted_standard_plugins() {
     fi
 }
 
+# The page Moodle shows in CLI maintenance mode, with this site's name, logo and
+# colour. Never a reason not to start: without it, Moodle uses its own.
+write_maintenance_page() {
+    mkdir -p "${OKS_DATA_STATE}"
+    moodle_php "${OKS_PHP}/maintenance-page.php" "${MOODLE_CODE_DIR}" "${OKS_DATA_STATE}" "${OKS_LIB}/maintenance-page.html" \
+        || warn "could not prepare the maintenance page; Moodle's own will be shown"
+}
+
 # Extra language packs: installed when the list changes.
 sync_langs() {
     local wanted="${MOODLE_EXTRA_LANGS:-}" stamp="${OKS_DATA_STATE}/langs"
