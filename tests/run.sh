@@ -173,6 +173,44 @@ basic_checks() {
     echo "Moodle $(moodle_release)"
 }
 
+# The maintenance page: filled in at start-up and shown in CLI maintenance mode,
+# with the health check still OK. A maintenance message or the site's own
+# template go first.
+expect_maintenance_page() {
+    local template=/var/www/moodledata/climaintenance.template.html own='<p>Our own page</p>'
+    log "Maintenance page"
+    # shellcheck disable=SC2016  # PHP code, expanded by PHP
+    moodle_eval '$c = get_site(); $c->fullname = "Site & <b>co</b>"; $DB->update_record("course", $c); set_config("brandcolor", "#123456", "theme_boost");'
+    compose restart moodle
+    wait_healthy
+    [ "$(compose exec -T moodle stat -c %U "${template}")" = www-data ] || fail "the template does not belong to www-data"
+    cli maintenance --enable >/dev/null
+    expect_status /login/index.php 503
+    page_has /login/index.php 'Site &amp; co</div>' || fail "the page does not have the site's name"
+    page_has /login/index.php '--accent: #123456;' || fail "the page does not have the brand colour"
+    page_has /login/index.php 'Volvemos enseguida' || fail "the page is not ours"
+    ! page_has /login/index.php '{{' || fail "the page has unfilled placeholders"
+    [ "$(http_body /_oksigenia/health)" = OK ] || fail "the health endpoint does not accept the maintenance mode"
+    compose exec -T moodle moodle-healthcheck || fail "the health check does not accept the maintenance mode"
+    cli maintenance --disable >/dev/null
+    expect_status /login/index.php 200
+    echo "the page is shown in maintenance mode, and the container stays healthy"
+
+    cli cfg --name=maintenance_message --set='Back on Monday' >/dev/null
+    cli maintenance --enable >/dev/null
+    page_has /login/index.php 'Back on Monday' || fail "the maintenance message does not go first"
+    ! page_has /login/index.php 'Volvemos enseguida' || fail "the page replaced the maintenance message"
+    cli maintenance --disable >/dev/null
+    cli cfg --name=maintenance_message --unset >/dev/null
+    echo "the site's maintenance message goes first"
+
+    compose exec -T -u www-data moodle sh -c "printf '%s\n' '${own}' > ${template}"
+    compose restart moodle
+    wait_healthy
+    [ "$(compose exec -T moodle cat "${template}")" = "${own}" ] || fail "the site's own template was replaced"
+    echo "the site's own template stays"
+}
+
 add_test_plugin() {
     local dir="$1" name="${3:-oksitest}"
     compose cp "${HERE}/fixtures/local_${name}" "moodle:${dir}/local/${name}"
@@ -199,6 +237,7 @@ case "${SCENARIO}" in
         owner="$(compose exec -T moodle stat -c %U /var/www/moodledata/cache/oksitest/by-root)"
         [ "${owner}" = www-data ] || fail "root-owned cache file still belongs to ${owner}"
         echo "root-owned cache file now belongs to www-data"
+        expect_maintenance_page
         log "A language pack added to a site in use is usable at once (MOODLE_EXTRA_LANGS=es)"
         # A site in use has its language list cached already.
         # shellcheck disable=SC2016 # PHP code, expanded by PHP

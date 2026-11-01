@@ -218,6 +218,14 @@ docker compose exec moodle moodle-cli admin/tool/task/cli/schedule_task.php --li
 
 Los scripts de `/docker-entrypoint-init.d/` (`.sh` y `.php`) se ejecutan una vez, tras la primera instalación.
 
+## Página de mantenimiento
+
+En modo mantenimiento (`moodle-cli maintenance --enable`), quien entra ve una página con el nombre, el logotipo y el color de marca del sitio, en el idioma de su navegador, que abre el sitio sola en cuanto vuelve. La imagen la rellena en cada arranque.
+
+La página dice que el sitio vuelve enseguida. Si el cierre va a ser largo, escribe tu propio mensaje en *Administración del sitio > Servidor > Modo mantenimiento*, y Moodle mostrará ese. Si prefieres una página propia, déjala en `moodledata/climaintenance.template.html`: la imagen no la toca.
+
+La actualización al arrancar el contenedor corre antes que Apache, así que lo que se ve mientras tanto depende de tu proxy inverso. Puedes servir ese mismo fichero desde él para sus errores 502, 503 y 504.
+
 ## Oksigenia Access
 
 La imagen incluye [Oksigenia Access](https://github.com/OksigeniaSL/moodle-local_oksigeniaaccess), un panel de accesibilidad para Moodle. Tiene 17 controles (tamaño de texto, contraste, tipografía para dislexia, guía de lectura…), 4 perfiles de un clic y 8 idiomas, y quien entra con su cuenta encuentra sus ajustes en cualquier dispositivo. Está en el [Moodle Marketplace](https://marketplace.moodle.com/plugins/local_oksigeniaaccess) con los premios *Privacy friendly* y *Automated testing support*. **No se instala si no lo pides:**

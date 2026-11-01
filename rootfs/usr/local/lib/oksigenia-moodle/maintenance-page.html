@@ -1,0 +1,183 @@
+<!doctype html>
+<!-- The page people see while a Moodle is closed for maintenance. Moodle serves it raw from moodledata, with nothing
+     else loaded, so it carries everything inside: no theme, no fonts, no images, no other requests but the check below. -->
+<html lang="en" data-fallback="{{LANG}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>{{SITE_NAME}}</title>
+<noscript><meta http-equiv="refresh" content="120"></noscript>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f6f4ee;
+  --ink: #1c2326;
+  --soft: #4f5a63;
+  --line: #c9c6bb;
+  --accent: {{ACCENT}};
+  --leaf: #fffdf7;
+  --leaf-shade: #e7e3d7;
+  --rule: #cbc7b9;
+  --shadow: rgba(40, 36, 24, .22);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14181d;
+    --ink: #eef0f1;
+    --soft: #aab4bd;
+    --line: #47515a;
+    --accent: {{ACCENT_DARK}};
+    --leaf: #e4e2da;
+    --leaf-shade: #b8b5ab;
+    --rule: #a5a297;
+    --shadow: rgba(0, 0, 0, .55);
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 1.0625rem/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+}
+main { width: min(33rem, 100%); text-align: center; }
+.site { font-weight: 600; font-size: 1rem; color: var(--soft); margin: 0 0 clamp(20px, 5vh, 44px); overflow-wrap: anywhere; }
+.site img { display: block; margin: 0 auto 10px; height: 56px; max-width: 100%; object-fit: contain; }
+h1 {
+  font: 500 clamp(2rem, 6vw, 2.75rem)/1.12 "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Noto Serif", serif;
+  letter-spacing: -.01em;
+  margin: clamp(20px, 4vh, 36px) 0 14px;
+}
+p { margin: 0; text-wrap: pretty; }
+.auto { color: var(--soft); font-size: .95rem; margin: 18px 0 20px; }
+button {
+  font: inherit;
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--ink);
+  background: transparent;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  min-height: 44px;
+  padding: 0 22px;
+  cursor: pointer;
+}
+button:hover { border-color: var(--ink); }
+button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* The book: an open book on a table whose pages turn slowly. Only transform moves, so it costs next to nothing. */
+.book { width: 208px; height: 132px; margin: 0 auto; perspective: 760px; }
+.table { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transform: rotateX(46deg); }
+.floor {
+  position: absolute; left: 6px; right: 6px; bottom: -16px; height: 34px; border-radius: 50%;
+  background: radial-gradient(closest-side, var(--shadow), transparent);
+  transform: translateZ(-14px);
+}
+.cover, .block, .leaf { position: absolute; top: 0; height: 100%; width: 50%; }
+.cover { background: var(--accent); top: -5px; height: calc(100% + 10px); width: calc(50% + 6px); }
+.cover.l { left: -6px; border-radius: 7px 0 0 7px; }
+.cover.r { left: 50%; border-radius: 0 7px 7px 0; }
+.block {
+  transform: translateZ(4px);
+  background: repeating-linear-gradient(to bottom, transparent 0 13px, var(--rule) 13px 15px) 14px 18px / calc(100% - 28px) calc(100% - 36px) no-repeat, var(--leaf);
+}
+.block.l { left: 0; border-radius: 3px 0 0 3px; box-shadow: inset -14px 0 14px -12px var(--shadow); }
+.block.r { left: 50%; border-radius: 0 3px 3px 0; box-shadow: inset 14px 0 14px -12px var(--shadow); }
+.leaf {
+  left: 50%;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  transform: translateZ(5px) rotateY(0deg);
+  border-radius: 0 3px 3px 0;
+  background: repeating-linear-gradient(to bottom, transparent 0 13px, var(--rule) 13px 15px) 14px 18px / calc(100% - 28px) calc(100% - 36px) no-repeat, var(--leaf);
+  box-shadow: 0 0 0 .5px var(--rule);
+  animation: turn 6s cubic-bezier(.5, .02, .3, 1) infinite;
+}
+.leaf::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(to right, var(--shadow), transparent 62%);
+  animation: dusk 6s cubic-bezier(.5, .02, .3, 1) infinite;
+  animation-delay: inherit;
+}
+.leaf:nth-of-type(2) { animation-delay: -2s; }
+.leaf:nth-of-type(3) { animation-delay: -4s; }
+@keyframes turn {
+  0%, 12% { transform: translateZ(5px) rotateY(0deg); }
+  78%, 100% { transform: translateZ(5px) rotateY(-180deg); }
+}
+@keyframes dusk {
+  0%, 12% { opacity: .15; }
+  45% { opacity: 1; }
+  78%, 100% { opacity: .15; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .leaf, .leaf::after { animation: none; }
+  .leaf { transform: translateZ(5px) rotateY(-32deg); }
+  .leaf:nth-of-type(2) { transform: translateZ(5px) rotateY(-90deg); }
+  .leaf:nth-of-type(3) { transform: translateZ(5px) rotateY(-148deg); }
+}
+/* Most logos are drawn for a light page: on the dark one, a light plate behind them. */
+@media (prefers-color-scheme: dark) {
+  .site img { box-sizing: content-box; padding: 8px 12px; background: var(--leaf); border-radius: 8px; }
+}
+@media (max-height: 560px) {
+  .site img { height: 40px; }
+  .book { transform: scale(.72); margin: -18px auto; }
+}
+</style>
+</head>
+<body>
+<main>
+  <div class="site">{{LOGO}}{{SITE_NAME}}</div>
+  <div class="book" aria-hidden="true">
+    <div class="table">
+      <div class="floor"></div>
+      <div class="cover l"></div><div class="cover r"></div>
+      <div class="block l"></div><div class="block r"></div>
+      <div class="leaf"></div><div class="leaf"></div><div class="leaf"></div>
+    </div>
+  </div>
+  <h1 id="t">We’ll be right back</h1>
+  <p id="b">We’re bringing this site up to date. Everything you had already saved or submitted is safe, and there’s nothing you need to do.</p>
+  <p class="auto" id="a" role="status">This page will open by itself as soon as the site is ready.</p>
+  <button type="button" id="r" onclick="location.reload()">Try now</button>
+</main>
+<script>
+(function () {
+  var T = {
+    es: ['Volvemos enseguida', 'Estamos poniendo este sitio al día. Lo que ya habías guardado o enviado está a salvo y no tienes que hacer nada.', 'Esta página se abrirá sola en cuanto esté listo.', 'Probar ahora'],
+    en: ['We’ll be right back', 'We’re bringing this site up to date. Everything you had already saved or submitted is safe, and there’s nothing you need to do.', 'This page will open by itself as soon as the site is ready.', 'Try now'],
+    fr: ['Nous revenons tout de suite', 'Nous mettons ce site à jour. Ce que vous aviez déjà enregistré ou envoyé est en sécurité et vous n’avez rien à faire.', 'Cette page s’ouvrira d’elle-même dès que le site sera prêt.', 'Réessayer'],
+    pt: ['Voltamos já', 'Estamos a atualizar este site. O que já tinha guardado ou enviado está seguro e não precisa de fazer nada.', 'Esta página abre-se sozinha assim que o site estiver pronto.', 'Tentar agora'],
+    'pt-br': ['Voltamos já', 'Estamos atualizando este site. O que você já tinha salvado ou enviado está seguro e não precisa fazer nada.', 'Esta página abre sozinha assim que o site estiver pronto.', 'Tentar agora'],
+    it: ['Torniamo subito', 'Stiamo aggiornando questo sito. Ciò che avevi già salvato o inviato è al sicuro e non devi fare nulla.', 'Questa pagina si aprirà da sola appena il sito sarà pronto.', 'Riprova ora'],
+    de: ['Wir sind gleich zurück', 'Wir bringen diese Website gerade auf den neuesten Stand. Was du bereits gespeichert oder abgeschickt hast, ist sicher, und du musst nichts tun.', 'Diese Seite öffnet sich von selbst, sobald die Website bereit ist.', 'Jetzt versuchen'],
+    ca: ['Tornem de seguida', 'Estem posant al dia aquest lloc. El que ja havies desat o enviat està segur i no has de fer res.', 'Aquesta pàgina s’obrirà sola tan bon punt el lloc estigui a punt.', 'Prova-ho ara']
+  };
+  var want = (navigator.languages || [navigator.language || '']).concat(document.documentElement.getAttribute('data-fallback'), 'en');
+  for (var i = 0; i < want.length; i++) {
+    var w = String(want[i] || '').toLowerCase(), s = T[w] || T[w.slice(0, 2)];
+    if (s) {
+      document.documentElement.lang = w.slice(0, 2);
+      ['t', 'b', 'a', 'r'].forEach(function (id, k) { document.getElementById(id).textContent = s[k]; });
+      break;
+    }
+  }
+  // Open by itself when the site answers again. 5xx is not yet: 503 is this page, 500 is Moodle's own page while an
+  // upgrade runs, and 502 or 504 are a proxy in front while the container restarts.
+  function check() {
+    fetch(location.href, { method: 'HEAD', cache: 'no-store', redirect: 'manual' }).then(function (r) {
+      if (r.status < 500) { location.reload(); }
+    }).catch(function () {});
+  }
+  setInterval(check, 20000);
+})();
+</script>
+</body>
+</html>
