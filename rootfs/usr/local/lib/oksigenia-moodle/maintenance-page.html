@@ -68,8 +68,11 @@ button {
   padding: 0 22px;
   cursor: pointer;
 }
-button:hover { border-color: var(--ink); }
-button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+/* Hover only where there is a pointer, so a tap does not leave it stuck; the keyboard reaches the same state. */
+@media (hover: hover) {
+  button:hover { border-color: var(--ink); }
+}
+button:focus-visible { border-color: var(--ink); outline: 3px solid var(--accent); outline-offset: 2px; }
 
 /* The book: an open book on a table whose pages turn slowly. Only transform moves, so it costs next to nothing. */
 .book { width: 208px; height: 132px; margin: 0 auto; perspective: 760px; }
