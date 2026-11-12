@@ -13,3 +13,9 @@ Only the tags of Moodle branches that still receive security fixes from Moodle H
 ## Verifying images
 
 Images are signed with cosign (keyless, GitHub OIDC) and carry SBOM and provenance attestations. See the README for the verification commands.
+
+## Past fixes
+
+Vulnerabilities that needed action from users. Branch tags (`4.5`, `5.3`, `latest`…) always carry every fix; an immutable `-rN` tag older than the one listed does not.
+
+- **21 October 2026, php2shell.** The PHP vulnerabilities CVE-2026-109618 and CVE-2026-109619 (remote code execution without logging in) are fixed from `4.5.15-r17` (PHP 8.3.36), `5.2.4-r17` and `5.3.0-r17` (PHP 8.4.27). If you pinned `5.2.4-r16` or older, move to the current tag of your branch and recreate the container.

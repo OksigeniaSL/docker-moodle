@@ -4,14 +4,6 @@ Imagen de contenedor del software Moodle™ LMS, mantenida y de código abierto.
 
 [Read in English](README.md)
 
-> **php2shell está corregido desde el 21 de octubre de 2026.** Los fallos de PHP CVE-2026-109618 y CVE-2026-109619 (ejecución remota de código sin iniciar sesión) están corregidos en `4.5.15-r17`, con PHP 8.3.36, y en `5.2.4-r17` y `5.3.0-r17`, con PHP 8.4.27. Las etiquetas de rama (`4.5`, `5.2`, `5.3`, `latest`…) ya apuntan a ellas. Descarga la etiqueta y vuelve a crear el contenedor:
->
-> ```sh
-> docker compose pull moodle && docker compose up -d moodle
-> ```
->
-> Si fijaste una etiqueta inmutable (`5.2.4-r16` o anterior), cámbiala por la `-r17` de tu rama.
-
 ## Qué hace
 
 - **Sigue las versiones de Moodle y de PHP.** Cada seis horas, un robot busca versiones nuevas de Moodle y versiones nuevas de PHP en la imagen oficial de PHP. Cuando encuentra una, las imágenes se reconstruyen, se prueban y se publican.
@@ -257,6 +249,7 @@ La imagen incluye [Oksigenia Access](https://github.com/OksigeniaSL/moodle-local
 - **Avisos de seguridad:**
   - Las vulnerabilidades de la imagen, en privado mediante los [avisos de seguridad de GitHub](https://github.com/OksigeniaSL/docker-moodle/security/advisories/new).
   - Las del propio Moodle, por su [proceso de seguridad](https://moodledev.io/general/development/process/security).
+- **Fallos ya corregidos:** los que pidieron algo a quien usa la imagen, como php2shell en octubre de 2026, están en [SECURITY.md](SECURITY.md#past-fixes) (en inglés).
 
 ## Dónde están las imágenes
 

@@ -4,14 +4,6 @@ A maintained, open-source container image of the Moodle™ LMS software: the off
 
 [Leer en español](README.es.md)
 
-> **php2shell is fixed as of 21 October 2026.** The PHP vulnerabilities CVE-2026-109618 and CVE-2026-109619 (remote code execution without logging in) are fixed in `4.5.15-r17`, with PHP 8.3.36, and in `5.2.4-r17` and `5.3.0-r17`, with PHP 8.4.27. The branch tags (`4.5`, `5.2`, `5.3`, `latest`…) already point to them. Pull the tag and recreate the container:
->
-> ```sh
-> docker compose pull moodle && docker compose up -d moodle
-> ```
->
-> If you pinned an immutable tag (`5.2.4-r16` or older), change it to the `-r17` of your branch.
-
 ## What it does
 
 - **Follows Moodle and PHP releases.** Every six hours a bot looks for new Moodle releases and for new PHP releases in the official PHP image. When it finds one, the images are rebuilt, tested and published.
@@ -245,6 +237,7 @@ The image includes [Oksigenia Access](https://github.com/OksigeniaSL/moodle-loca
 - **Scanning:** a build with a critical vulnerability that has a fix available is not published.
 - **Plugins from the web:** Moodle lets site administrators install plugins from a ZIP file, and a plugin is PHP code that runs in the container. To turn that off, put `$CFG->disableupdateautodeploy = true;` in a file under `/etc/moodle/config.d/` (see [Your own Moodle settings](#your-own-moodle-settings)). Plugins are then added to the code volume by whoever runs the server.
 - **Reporting:** report vulnerabilities in the image privately through [GitHub security advisories](https://github.com/OksigeniaSL/docker-moodle/security/advisories/new). Vulnerabilities in Moodle itself go to [Moodle's security process](https://moodledev.io/general/development/process/security).
+- **Past fixes:** the vulnerabilities that needed action from users, such as php2shell in October 2026, are listed in [SECURITY.md](SECURITY.md#past-fixes).
 
 ## Images
 
