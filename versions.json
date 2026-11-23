@@ -4,8 +4,8 @@
     "sha256": "43bbc3e34d421cfd4044065ec7d37eea18adb371b0f5278230b8eef61723e498"
   },
   "php_images": {
-    "8.3": "sha256:3048d9fc5448e49885f0b9c7ab9a6a4ec0f6560c2e83d578b9724f9f92eff48f",
-    "8.4": "sha256:20da4cbf0dbb1b1951a3f88b2fb16a8272dd42c8a02901e7454bfa6151734402"
+    "8.3": "sha256:e520186957084dc0a5baaea83b2ef0c20b16e78c1de31b6fdb21dc1240cce42e",
+    "8.4": "sha256:3550aedd1c7bdfe26283c7b1550ef76509e6c2b1284aef814e6f2e325b7c9688"
   },
   "branches": {
     "4.5": {
